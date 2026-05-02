@@ -1,0 +1,123 @@
+package io.bemylens.app.ui
+
+import android.app.Application
+import android.net.Uri
+import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.viewModelScope
+import io.bemylens.app.ChatMessage
+import io.bemylens.app.ChatRole
+import io.bemylens.app.data.LensRepository
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
+
+data class LensUiState(
+    val selectedImageUri: Uri? = null,
+    val isLoading: Boolean = false,
+    val latestAnswer: String? = null,
+    val sessionId: String? = null,
+    val followUpQuestion: String = "",
+    val messages: List<ChatMessage> = emptyList(),
+    val errorMessage: String? = null,
+)
+
+class LensViewModel(application: Application) : AndroidViewModel(application) {
+    private val repository = LensRepository(application.applicationContext)
+    private val _uiState = MutableStateFlow(LensUiState())
+    val uiState: StateFlow<LensUiState> = _uiState.asStateFlow()
+
+    fun onImageSelected(uri: Uri) {
+        _uiState.update {
+            LensUiState(selectedImageUri = uri)
+        }
+    }
+
+    fun updateFollowUpQuestion(question: String) {
+        _uiState.update { it.copy(followUpQuestion = question) }
+    }
+
+    fun sendShortcut(question: String) {
+        _uiState.update { it.copy(followUpQuestion = question) }
+        sendFollowUp(question)
+    }
+
+    fun describeSelectedImage() {
+        val imageUri = _uiState.value.selectedImageUri ?: return
+
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true, errorMessage = null) }
+
+            runCatching {
+                repository.describeImage(imageUri)
+            }.onSuccess { response ->
+                _uiState.update {
+                    it.copy(
+                        isLoading = false,
+                        latestAnswer = response.description,
+                        sessionId = response.sessionId,
+                        followUpQuestion = "",
+                        messages = listOf(
+                            ChatMessage(
+                                role = ChatRole.ASSISTANT,
+                                text = response.description,
+                            ),
+                        ),
+                    )
+                }
+            }.onFailure { error ->
+                _uiState.update {
+                    it.copy(
+                        isLoading = false,
+                        errorMessage = error.message ?: "Failed to describe image.",
+                    )
+                }
+            }
+        }
+    }
+
+    fun sendFollowUp(prefilledQuestion: String? = null) {
+        val currentState = _uiState.value
+        val question = (prefilledQuestion ?: currentState.followUpQuestion).trim()
+        val sessionId = currentState.sessionId ?: return
+        if (question.isBlank()) return
+
+        viewModelScope.launch {
+            _uiState.update {
+                it.copy(
+                    isLoading = true,
+                    errorMessage = null,
+                    messages = it.messages + ChatMessage(
+                        role = ChatRole.USER,
+                        text = question,
+                    ),
+                )
+            }
+
+            runCatching {
+                repository.followUp(sessionId = sessionId, question = question)
+            }.onSuccess { response ->
+                _uiState.update {
+                    it.copy(
+                        isLoading = false,
+                        followUpQuestion = "",
+                        latestAnswer = response.answer,
+                        messages = it.messages + ChatMessage(
+                            role = ChatRole.ASSISTANT,
+                            text = response.answer,
+                        ),
+                    )
+                }
+            }.onFailure { error ->
+                _uiState.update {
+                    it.copy(
+                        isLoading = false,
+                        errorMessage = error.message ?: "Failed to send follow-up question.",
+                        messages = it.messages.dropLast(1),
+                    )
+                }
+            }
+        }
+    }
+}
