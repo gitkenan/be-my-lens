@@ -2,8 +2,10 @@ package io.bemylens.app.ui
 
 import android.app.Application
 import android.net.Uri
+import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import io.bemylens.app.BuildConfig
 import io.bemylens.app.ChatMessage
 import io.bemylens.app.ChatRole
 import io.bemylens.app.data.LensRepository
@@ -67,10 +69,18 @@ class LensViewModel(application: Application) : AndroidViewModel(application) {
                     )
                 }
             }.onFailure { error ->
+                Log.e(
+                    "BeMyLens",
+                    "describeSelectedImage failed in build ${BuildConfig.BUILD_MARKER}",
+                    error,
+                )
                 _uiState.update {
                     it.copy(
                         isLoading = false,
-                        errorMessage = error.message ?: "Failed to describe image.",
+                        errorMessage = errorMessage(
+                            error = error,
+                            fallback = "Failed to describe image.",
+                        ),
                     )
                 }
             }
@@ -110,14 +120,34 @@ class LensViewModel(application: Application) : AndroidViewModel(application) {
                     )
                 }
             }.onFailure { error ->
+                Log.e(
+                    "BeMyLens",
+                    "sendFollowUp failed in build ${BuildConfig.BUILD_MARKER}",
+                    error,
+                )
                 _uiState.update {
                     it.copy(
                         isLoading = false,
-                        errorMessage = error.message ?: "Failed to send follow-up question.",
+                        errorMessage = errorMessage(
+                            error = error,
+                            fallback = "Failed to send follow-up question.",
+                        ),
                         messages = it.messages.dropLast(1),
                     )
                 }
             }
+        }
+    }
+
+    private fun errorMessage(error: Throwable, fallback: String): String {
+        if (!BuildConfig.DEBUG) {
+            return error.message ?: fallback
+        }
+
+        return buildString {
+            appendLine("Build: ${BuildConfig.BUILD_MARKER}")
+            appendLine("${error::class.java.name}: ${error.message ?: fallback}")
+            append(error.stackTraceToString())
         }
     }
 }

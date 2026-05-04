@@ -130,7 +130,7 @@ private fun LensScreen(
                     )
                 } else {
                     SelectedImagePanel(
-                        imageUri = state.selectedImageUri,
+                        imageUri = state.selectedImageUri!!,
                         onRetake = ::launchCameraCapture,
                         onChooseAnother = {
                             photoPickerLauncher.launch(
@@ -196,6 +196,13 @@ private fun Header() {
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
+        if (BuildConfig.DEBUG) {
+            Text(
+                text = "Debug build: ${BuildConfig.BUILD_MARKER}\nAPI: ${BuildConfig.API_BASE_URL}",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
     }
 }
 
