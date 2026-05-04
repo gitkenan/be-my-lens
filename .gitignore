@@ -9,3 +9,5 @@ captures/
 .venv/
 __pycache__/
 server/.env
+*.deb
+phonelens/
