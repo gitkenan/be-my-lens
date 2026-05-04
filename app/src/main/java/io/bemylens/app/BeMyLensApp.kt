@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -131,13 +130,9 @@ private fun LensScreen(
                 } else {
                     SelectedImagePanel(
                         imageUri = state.selectedImageUri!!,
-                        onRetake = ::launchCameraCapture,
-                        onChooseAnother = {
-                            photoPickerLauncher.launch(
-                                PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly),
-                            )
-                        },
                         onDescribe = viewModel::describeSelectedImage,
+                        onAskQuestion = viewModel::openChat,
+                        onReadContents = viewModel::readSelectedImage,
                         isLoading = state.isLoading,
                     )
                 }
@@ -157,9 +152,9 @@ private fun LensScreen(
                     )
                 }
 
-                if (state.selectedImageUri != null) {
+                if (state.selectedImageUri != null && state.isChatOpen) {
                     FollowUpSection(
-                        enabled = state.sessionId != null && !state.isLoading,
+                        enabled = !state.isLoading,
                         currentQuestion = state.followUpQuestion,
                         messages = state.messages,
                         onQuestionChange = viewModel::updateFollowUpQuestion,
@@ -192,7 +187,7 @@ private fun Header() {
             fontWeight = FontWeight.Bold,
         )
         Text(
-            text = "Take a photo or choose one, then get an AI description and ask follow-up questions.",
+            text = "Take a photo or choose one, then describe it, read text, or ask a question.",
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -253,9 +248,9 @@ private fun EmptyState(
 @Composable
 private fun SelectedImagePanel(
     imageUri: Uri,
-    onRetake: () -> Unit,
-    onChooseAnother: () -> Unit,
     onDescribe: () -> Unit,
+    onAskQuestion: () -> Unit,
+    onReadContents: () -> Unit,
     isLoading: Boolean,
 ) {
     Card(shape = RoundedCornerShape(24.dp)) {
@@ -284,19 +279,23 @@ private fun SelectedImagePanel(
                 ) {
                     Text("Describe image")
                 }
-                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    OutlinedButton(
-                        onClick = onRetake,
-                        modifier = Modifier.weight(1f),
-                    ) {
-                        Text("Retake")
-                    }
-                    OutlinedButton(
-                        onClick = onChooseAnother,
-                        modifier = Modifier.weight(1f),
-                    ) {
-                        Text("Choose another")
-                    }
+                OutlinedButton(
+                    onClick = onAskQuestion,
+                    enabled = !isLoading,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(56.dp),
+                ) {
+                    Text("Ask question")
+                }
+                OutlinedButton(
+                    onClick = onReadContents,
+                    enabled = !isLoading,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(56.dp),
+                ) {
+                    Text("Read contents")
                 }
             }
         }
@@ -344,7 +343,6 @@ private fun FollowUpSection(
     onShortcut: (String) -> Unit,
 ) {
     val shortcuts = listOf(
-        "Read the text",
         "What objects are here?",
         "Any hazards?",
         "Describe in more detail",
@@ -352,7 +350,7 @@ private fun FollowUpSection(
 
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text(
-            text = "Ask more",
+            text = "Ask question",
             style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.SemiBold,
         )
@@ -372,7 +370,7 @@ private fun FollowUpSection(
             onValueChange = onQuestionChange,
             modifier = Modifier.fillMaxWidth(),
             enabled = enabled,
-            label = { Text("Follow-up question") },
+            label = { Text("Question") },
             placeholder = { Text("Ask about text, objects, colors, or layout") },
         )
 

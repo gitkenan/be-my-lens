@@ -86,4 +86,62 @@ class LensJsonTest {
             server.shutdown()
         }
     }
+
+    @Test
+    fun convertsReadContentsResponseJson() {
+        @Suppress("UNCHECKED_CAST")
+        val converter = LensJson.converterFactory().responseBodyConverter(
+            ReadContentsResponse::class.java,
+            emptyArray(),
+            Retrofit.Builder()
+                .baseUrl("http://localhost/")
+                .build(),
+        ) as Converter<ResponseBody, ReadContentsResponse>
+
+        val response = converter.convert(
+            """
+            {
+              "sessionId": "session-789",
+              "contents": "Exit 12A"
+            }
+            """.trimIndent().toResponseBody("application/json".toMediaType()),
+        )
+
+        assertEquals(
+            ReadContentsResponse(
+                sessionId = "session-789",
+                contents = "Exit 12A",
+            ),
+            response,
+        )
+    }
+
+    @Test
+    fun convertsChatResponseJson() {
+        @Suppress("UNCHECKED_CAST")
+        val converter = LensJson.converterFactory().responseBodyConverter(
+            ChatResponse::class.java,
+            emptyArray(),
+            Retrofit.Builder()
+                .baseUrl("http://localhost/")
+                .build(),
+        ) as Converter<ResponseBody, ChatResponse>
+
+        val response = converter.convert(
+            """
+            {
+              "sessionId": "session-abc",
+              "answer": "The red button is near the top."
+            }
+            """.trimIndent().toResponseBody("application/json".toMediaType()),
+        )
+
+        assertEquals(
+            ChatResponse(
+                sessionId = "session-abc",
+                answer = "The red button is near the top.",
+            ),
+            response,
+        )
+    }
 }
