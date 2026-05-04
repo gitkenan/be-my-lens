@@ -2,6 +2,7 @@ package io.bemylens.app
 
 import android.os.Bundle
 import android.speech.tts.TextToSpeech
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -12,6 +13,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        Log.i("BeMyLens", "Starting build ${BuildConfig.BUILD_MARKER}")
         enableEdgeToEdge()
 
         speaker = TextToSpeech(this) { status ->
