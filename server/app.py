@@ -2,11 +2,12 @@ import base64
 import os
 import uuid
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import List
 
 import httpx
 from dotenv import load_dotenv
-from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
@@ -14,23 +15,25 @@ load_dotenv()
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4.1-mini")
-OPENAI_API_URL = "https://api.openai.com/v1/responses"
+OPENAI_RESPONSES_API_URL = "https://api.openai.com/v1/responses"
+OPENAI_CHAT_COMPLETIONS_API_URL = "https://api.openai.com/v1/chat/completions"
+PROMPTS_DIR = Path(__file__).parent / "prompts" / "en"
 
-DEVELOPER_PROMPT = (
-    "You are assisting a blind or low-vision user. "
-    "Describe the image clearly, directly, and concisely. "
-    "Return plain text only, with no Markdown formatting, headings, bullets, or lists. "
-    "Prioritize visible text, important objects, colors, layout, and safety-relevant details. "
-    "If the user asks a follow-up question, answer it specifically using the same image context. "
-    "Do not end with a summary, recap, offer to help, or extra closing sentence. "
-    "If you are uncertain, say so briefly."
-)
+DESCRIBE_IMAGE_PROMPT = (PROMPTS_DIR / "describe_image.txt").read_text(encoding="utf-8").strip()
+READ_CONTENTS_PROMPT = (PROMPTS_DIR / "read_contents.txt").read_text(encoding="utf-8").strip()
+ASK_QUESTION_PROMPT = (PROMPTS_DIR / "ask_question.txt").read_text(encoding="utf-8").strip()
+
+
+@dataclass
+class ChatTurn:
+    role: str
+    text: str
 
 
 @dataclass
 class Session:
     image_data_url: str
-    transcript: List[str] = field(default_factory=list)
+    transcript: List[ChatTurn] = field(default_factory=list)
 
 
 class FollowUpBody(BaseModel):
@@ -58,14 +61,62 @@ async def health() -> dict[str, str]:
 @app.post("/describe")
 async def describe(image: UploadFile = File(...)) -> dict[str, str]:
     ensure_api_key()
-    content = await image.read()
-    if not content:
-        raise HTTPException(status_code=400, detail="Image payload was empty.")
+    content = await read_image_payload(image)
 
     image_data_url = to_data_url(content, image.content_type or "image/jpeg")
     answer = await ask_model(
         image_data_url=image_data_url,
+        developer_prompt=DESCRIBE_IMAGE_PROMPT,
         user_question="Describe this image for a blind or low-vision user.",
+    )
+
+    session_id = uuid.uuid4().hex
+    SESSIONS[session_id] = Session(
+        image_data_url=image_data_url,
+        transcript=[
+            ChatTurn(role="user", text="Describe this image for a blind or low-vision user."),
+            ChatTurn(role="assistant", text=answer),
+        ],
+    )
+    return {"sessionId": session_id, "description": answer}
+
+
+@app.post("/read")
+async def read_contents(image: UploadFile = File(...)) -> dict[str, str]:
+    ensure_api_key()
+    content = await read_image_payload(image)
+
+    image_data_url = to_data_url(content, image.content_type or "image/jpeg")
+    answer = await ask_model(
+        image_data_url=image_data_url,
+        developer_prompt=READ_CONTENTS_PROMPT,
+        user_question="Read the text in the picture.",
+    )
+
+    session_id = uuid.uuid4().hex
+    SESSIONS[session_id] = Session(
+        image_data_url=image_data_url,
+        transcript=[
+            ChatTurn(role="user", text="Read the text in the picture."),
+            ChatTurn(role="assistant", text=answer),
+        ],
+    )
+    return {"sessionId": session_id, "contents": answer}
+
+
+@app.post("/chat")
+async def chat(image: UploadFile = File(...), question: str = Form(...)) -> dict[str, str]:
+    ensure_api_key()
+    content = await read_image_payload(image)
+
+    clean_question = question.strip()
+    if not clean_question:
+        raise HTTPException(status_code=400, detail="Question must not be blank.")
+
+    image_data_url = to_data_url(content, image.content_type or "image/jpeg")
+    answer = await ask_chat_model(
+        image_data_url=image_data_url,
+        user_question=clean_question,
         transcript=[],
     )
 
@@ -73,11 +124,11 @@ async def describe(image: UploadFile = File(...)) -> dict[str, str]:
     SESSIONS[session_id] = Session(
         image_data_url=image_data_url,
         transcript=[
-            "User: Describe this image for a blind or low-vision user.",
-            f"Assistant: {answer}",
+            ChatTurn(role="user", text=clean_question),
+            ChatTurn(role="assistant", text=answer),
         ],
     )
-    return {"sessionId": session_id, "description": answer}
+    return {"sessionId": session_id, "answer": answer}
 
 
 @app.post("/followup")
@@ -91,15 +142,15 @@ async def followup(body: FollowUpBody) -> dict[str, str]:
     if not question:
         raise HTTPException(status_code=400, detail="Question must not be blank.")
 
-    answer = await ask_model(
+    answer = await ask_chat_model(
         image_data_url=session.image_data_url,
         user_question=question,
         transcript=session.transcript,
     )
     session.transcript.extend(
         [
-            f"User: {question}",
-            f"Assistant: {answer}",
+            ChatTurn(role="user", text=question),
+            ChatTurn(role="assistant", text=answer),
         ]
     )
     return {"answer": answer}
@@ -115,19 +166,14 @@ def to_data_url(content: bytes, content_type: str) -> str:
     return f"data:{content_type};base64,{encoded}"
 
 
-def build_user_prompt(question: str, transcript: List[str]) -> str:
-    if not transcript:
-        return question
-
-    history = "\n".join(transcript[-8:])
-    return (
-        "Use the same image as before.\n\n"
-        f"Conversation so far:\n{history}\n\n"
-        f"Latest user question: {question}"
-    )
+async def read_image_payload(image: UploadFile) -> bytes:
+    content = await image.read()
+    if not content:
+        raise HTTPException(status_code=400, detail="Image payload was empty.")
+    return content
 
 
-async def ask_model(image_data_url: str, user_question: str, transcript: List[str]) -> str:
+async def ask_model(image_data_url: str, developer_prompt: str, user_question: str) -> str:
     payload = {
         "model": OPENAI_MODEL,
         "input": [
@@ -136,7 +182,7 @@ async def ask_model(image_data_url: str, user_question: str, transcript: List[st
                 "content": [
                     {
                         "type": "input_text",
-                        "text": DEVELOPER_PROMPT,
+                        "text": developer_prompt,
                     }
                 ],
             },
@@ -145,7 +191,7 @@ async def ask_model(image_data_url: str, user_question: str, transcript: List[st
                 "content": [
                     {
                         "type": "input_text",
-                        "text": build_user_prompt(user_question, transcript),
+                        "text": user_question,
                     },
                     {
                         "type": "input_image",
@@ -163,7 +209,7 @@ async def ask_model(image_data_url: str, user_question: str, transcript: List[st
     }
 
     async with httpx.AsyncClient(timeout=90.0) as client:
-        response = await client.post(OPENAI_API_URL, headers=headers, json=payload)
+        response = await client.post(OPENAI_RESPONSES_API_URL, headers=headers, json=payload)
         if response.status_code >= 400:
             raise HTTPException(status_code=502, detail=response.text)
 
@@ -172,6 +218,78 @@ async def ask_model(image_data_url: str, user_question: str, transcript: List[st
     if not text:
         raise HTTPException(status_code=502, detail="The model returned no text output.")
     return text.strip()
+
+
+async def ask_chat_model(
+    image_data_url: str,
+    user_question: str,
+    transcript: List[ChatTurn],
+) -> str:
+    payload = {
+        "model": OPENAI_MODEL,
+        "messages": build_chat_messages(
+            image_data_url=image_data_url,
+            user_question=user_question,
+            transcript=transcript,
+        ),
+    }
+
+    headers = {
+        "Authorization": f"Bearer {OPENAI_API_KEY}",
+        "Content-Type": "application/json",
+    }
+
+    async with httpx.AsyncClient(timeout=90.0) as client:
+        response = await client.post(OPENAI_CHAT_COMPLETIONS_API_URL, headers=headers, json=payload)
+        if response.status_code >= 400:
+            raise HTTPException(status_code=502, detail=response.text)
+
+    data = response.json()
+    text = extract_chat_output_text(data)
+    if not text:
+        raise HTTPException(status_code=502, detail="The model returned no text output.")
+    return text.strip()
+
+
+def build_chat_messages(
+    image_data_url: str,
+    user_question: str,
+    transcript: List[ChatTurn],
+) -> List[dict]:
+    messages: List[dict] = [
+        {
+            "role": "developer",
+            "content": ASK_QUESTION_PROMPT,
+        }
+    ]
+
+    for turn in transcript[-8:]:
+        messages.append(
+            {
+                "role": turn.role,
+                "content": turn.text,
+            }
+        )
+
+    messages.append(
+        {
+            "role": "user",
+            "content": [
+                {
+                    "type": "text",
+                    "text": user_question,
+                },
+                {
+                    "type": "image_url",
+                    "image_url": {
+                        "url": image_data_url,
+                        "detail": "high",
+                    },
+                },
+            ],
+        }
+    )
+    return messages
 
 
 def extract_output_text(data: dict) -> str:
@@ -188,3 +306,22 @@ def extract_output_text(data: dict) -> str:
                     chunks.append(text)
 
     return "\n".join(chunks)
+
+
+def extract_chat_output_text(data: dict) -> str:
+    choices = data.get("choices", [])
+    if not choices:
+        return ""
+
+    content = choices[0].get("message", {}).get("content", "")
+    if isinstance(content, str):
+        return content
+
+    if isinstance(content, list):
+        chunks = []
+        for item in content:
+            if item.get("type") == "text" and item.get("text"):
+                chunks.append(item["text"])
+        return "\n".join(chunks)
+
+    return ""

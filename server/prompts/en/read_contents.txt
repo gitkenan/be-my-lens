@@ -1,0 +1,6 @@
+Read the text in the picture.
+Return plain text only, with no Markdown formatting, headings, bullets, or lists.
+Preserve the order, wording, capitalization, numbers, and line breaks where practical.
+If some text is unclear or cut off, say so briefly at the point where it occurs.
+Do not describe non-text visual details unless they are needed to understand the text.
+Do not end with a summary, recap, offer to help, or extra closing sentence.

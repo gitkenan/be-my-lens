@@ -35,14 +35,18 @@ class LensRepository(
     }
 
     suspend fun describeImage(imageUri: Uri): DescribeResponse {
-        val imageBytes = readCompressedJpeg(context, imageUri)
-        val requestBody = imageBytes.toRequestBody("image/jpeg".toMediaType())
-        val imagePart = MultipartBody.Part.createFormData(
-            name = "image",
-            filename = "image.jpg",
-            body = requestBody,
+        return api.describe(imagePartFor(imageUri))
+    }
+
+    suspend fun readContents(imageUri: Uri): ReadContentsResponse {
+        return api.readContents(imagePartFor(imageUri))
+    }
+
+    suspend fun askQuestion(imageUri: Uri, question: String): ChatResponse {
+        return api.askQuestion(
+            image = imagePartFor(imageUri),
+            question = question.toRequestBody("text/plain".toMediaType()),
         )
-        return api.describe(imagePart)
     }
 
     suspend fun followUp(sessionId: String, question: String): FollowUpResponse {
@@ -51,6 +55,16 @@ class LensRepository(
                 sessionId = sessionId,
                 question = question,
             ),
+        )
+    }
+
+    private fun imagePartFor(imageUri: Uri): MultipartBody.Part {
+        val imageBytes = readCompressedJpeg(context, imageUri)
+        val requestBody = imageBytes.toRequestBody("image/jpeg".toMediaType())
+        return MultipartBody.Part.createFormData(
+            name = "image",
+            filename = "image.jpg",
+            body = requestBody,
         )
     }
 }

@@ -20,6 +20,7 @@ data class LensUiState(
     val isLoading: Boolean = false,
     val latestAnswer: String? = null,
     val sessionId: String? = null,
+    val isChatOpen: Boolean = false,
     val followUpQuestion: String = "",
     val messages: List<ChatMessage> = emptyList(),
     val errorMessage: String? = null,
@@ -38,6 +39,10 @@ class LensViewModel(application: Application) : AndroidViewModel(application) {
 
     fun updateFollowUpQuestion(question: String) {
         _uiState.update { it.copy(followUpQuestion = question) }
+    }
+
+    fun openChat() {
+        _uiState.update { it.copy(isChatOpen = true, errorMessage = null) }
     }
 
     fun sendShortcut(question: String) {
@@ -59,6 +64,7 @@ class LensViewModel(application: Application) : AndroidViewModel(application) {
                         isLoading = false,
                         latestAnswer = response.description,
                         sessionId = response.sessionId,
+                        isChatOpen = false,
                         followUpQuestion = "",
                         messages = listOf(
                             ChatMessage(
@@ -87,10 +93,54 @@ class LensViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun readSelectedImage() {
+        val imageUri = _uiState.value.selectedImageUri ?: return
+
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true, errorMessage = null) }
+
+            runCatching {
+                repository.readContents(imageUri)
+            }.onSuccess { response ->
+                _uiState.update {
+                    it.copy(
+                        isLoading = false,
+                        latestAnswer = response.contents,
+                        sessionId = response.sessionId,
+                        isChatOpen = false,
+                        followUpQuestion = "",
+                        messages = listOf(
+                            ChatMessage(
+                                role = ChatRole.ASSISTANT,
+                                text = response.contents,
+                            ),
+                        ),
+                    )
+                }
+            }.onFailure { error ->
+                Log.e(
+                    "BeMyLens",
+                    "readSelectedImage failed in build ${BuildConfig.BUILD_MARKER}",
+                    error,
+                )
+                _uiState.update {
+                    it.copy(
+                        isLoading = false,
+                        errorMessage = errorMessage(
+                            error = error,
+                            fallback = "Failed to read image contents.",
+                        ),
+                    )
+                }
+            }
+        }
+    }
+
     fun sendFollowUp(prefilledQuestion: String? = null) {
         val currentState = _uiState.value
         val question = (prefilledQuestion ?: currentState.followUpQuestion).trim()
-        val sessionId = currentState.sessionId ?: return
+        val imageUri = currentState.selectedImageUri ?: return
+        val sessionId = currentState.sessionId
         if (question.isBlank()) return
 
         viewModelScope.launch {
@@ -106,16 +156,26 @@ class LensViewModel(application: Application) : AndroidViewModel(application) {
             }
 
             runCatching {
-                repository.followUp(sessionId = sessionId, question = question)
-            }.onSuccess { response ->
+                if (sessionId == null) {
+                    repository.askQuestion(imageUri = imageUri, question = question).let { response ->
+                        response.sessionId to response.answer
+                    }
+                } else {
+                    repository.followUp(sessionId = sessionId, question = question).let { response ->
+                        sessionId to response.answer
+                    }
+                }
+            }.onSuccess { (newSessionId, answer) ->
                 _uiState.update {
                     it.copy(
                         isLoading = false,
                         followUpQuestion = "",
-                        latestAnswer = response.answer,
+                        latestAnswer = answer,
+                        sessionId = newSessionId,
+                        isChatOpen = true,
                         messages = it.messages + ChatMessage(
                             role = ChatRole.ASSISTANT,
-                            text = response.answer,
+                            text = answer,
                         ),
                     )
                 }
