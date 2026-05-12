@@ -86,6 +86,39 @@ intent-filter matching changes later.
 
 ## Most Likely Lua Shape
 
+The runnable prototype is:
+
+```text
+prototypes/jieshuo/describe_image.lua
+```
+
+It has a single `TEST_MODE` setting near the top:
+
+```lua
+local TEST_MODE = "describe_screen"
+```
+
+Supported prototype test modes:
+
+| `TEST_MODE` | Purpose |
+| --- | --- |
+| `no_image` | Launches Be My Lens explicitly without an image URI. This verifies Jieshuo can start the Activity. |
+| `describe_screen` | Captures a screenshot and launches Be My Lens with `mode = "describe_screen"`. |
+| `focused_item` | Captures a screenshot and launches Be My Lens with `mode = "focused_item"`. |
+
+The no-image smoke test launches:
+
+```text
+package = io.bemylens.app
+activity = io.bemylens.app.JieshuoEntryActivity
+action = io.bemylens.app.action.DESCRIBE_IMAGE
+mode = describe_screen
+autoSpeak = true
+```
+
+with no image URI. Be My Lens should open and show its no-image error. That is
+expected for this smoke test.
+
 Full screen or focused-item screenshot path:
 
 ```lua
@@ -125,7 +158,7 @@ end
 
 this.getScreenShot(node, {
   onScreenCaptureDone = function(bitmap)
-    local file = File("/sdcard/", "be_my_lens_jieshuo.png")
+    local file = File("/sdcard/", "be_my_lens_jieshuo_<timestamp>.png")
     bitmap.compress(Bitmap.CompressFormat.PNG, 90, FileOutputStream(file))
     local uri = this.getUriForFile(file)
     launchBeMyLens(uri, "describe_screen", nil, true)
@@ -164,6 +197,40 @@ Be My Lens reads URI sources in this order:
 So any one of these should work, but sending all three makes the first prototype
 easier to diagnose.
 
+## Prototype Storage Path
+
+The Lua prototype tries to save screenshots in this order:
+
+1. Jieshuo/context external cache directory from `this.getExternalCacheDir()`
+2. Jieshuo/context cache directory from `this.getCacheDir()`
+3. `/sdcard/` as a temporary prototype fallback
+
+The filename is timestamped:
+
+```text
+be_my_lens_jieshuo_<timestamp>.png
+```
+
+The `/sdcard/` fallback is only for first-device testing. If it is the only
+path that works, the final `.ppk` should revisit storage and URI grants before
+release.
+
+## Prototype Feedback
+
+The script uses both `print(...)` and Android `Toast` messages where available.
+It reports:
+
+- starting launch
+- screenshot capture attempted
+- screenshot capture succeeded or failed
+- file save path
+- generated URI
+- `startActivity` call
+- exception messages from launch, capture, save, and URI generation
+
+This is intentionally noisy so the first blind-user testing pass has audible or
+debuggable progress feedback.
+
 ## Focused Text And Bounds
 
 Because Jieshuo scripts appear to receive a `node` object, the likely Android
@@ -200,18 +267,104 @@ Android-side contract.
 
 ## Simplest First Tests
 
-1. Launch without image.
-   This verifies component/action/extras and should show Be My Lens' no-image
-   error screen.
+1. Set `TEST_MODE = "no_image"`.
+   Run the script from Jieshuo. This verifies component/action/extras and should
+   show Be My Lens' no-image error screen.
 
-2. Launch with a hardcoded image URI.
-   Use a URI obtained from an existing image share or Jieshuo's own
-   `this.getUriForFile(File(...))`.
+2. Set `TEST_MODE = "describe_screen"`.
+   Run the script from Jieshuo. This should capture a screenshot, save it to a
+   timestamped PNG, create a URI, and launch Be My Lens with
+   `mode = "describe_screen"`.
 
-3. Capture screenshot, save to PNG, call `this.getUriForFile(file)`, then launch
-   Be My Lens with `mode = "describe_screen"`.
+3. Set `TEST_MODE = "focused_item"`.
+   Run the script from Jieshuo. This currently uses the same screenshot capture
+   path, but launches Be My Lens with `mode = "focused_item"`.
 
-4. Repeat with `mode = "focused_item"`.
+4. If capture fails, use a hardcoded image URI from Jieshuo's existing
+   screenshot/share behavior or another known readable image and call
+   `launchBeMyLens(uri, "describe_screen", nil, true)`.
+
+## Real-Device Test Checklist
+
+Use a real device with Jieshuo installed and Be My Lens debug installed.
+
+1. Build and install Be My Lens debug APK.
+   Example from this repo: `./gradlew :app:assembleDebug`, then install the APK
+   from `app/build/outputs/apk/debug/app-debug.apk`.
+
+2. Install or open Jieshuo and confirm its screen-reader service is active.
+
+3. Import or run `prototypes/jieshuo/describe_image.lua` in Jieshuo.
+
+4. Run the no-image launch test with `TEST_MODE = "no_image"`.
+
+5. Verify Be My Lens opens directly to `JieshuoEntryActivity`.
+
+6. Verify Be My Lens shows the expected no-image error.
+
+7. Run the full-screen screenshot test with `TEST_MODE = "describe_screen"`.
+
+8. Verify screenshot capture is attempted and succeeds according to toast/log
+   output.
+
+9. Verify the generated URI is logged/toasted.
+
+10. Verify Be My Lens opens, processing starts, and the result is spoken.
+
+11. Run the focused-item screenshot test with `TEST_MODE = "focused_item"`.
+
+12. Verify the result uses the focused-item behavior, or record that Jieshuo only
+   supplied a full-screen image.
+
+13. Trigger repeated launches quickly and verify Be My Lens does not speak stale
+   results from an older request.
+
+14. Verify Be My Lens can read the URI/file. A backend result means URI reading,
+   local copy, upload, and processing all worked.
+
+## Expected Failures
+
+`Activity does not open`
+
+The explicit `ComponentName` may be wrong, Be My Lens may not be installed, the
+debug package name may differ, or Jieshuo may block `startActivity` from that
+script context.
+
+`Activity opens but says no image received`
+
+The no-image smoke test is working as intended, or the capture test launched
+without a URI because screenshot capture, file save, or URI generation failed.
+Check the toast/log line immediately before launch.
+
+`Screenshot capture fails`
+
+Jieshuo may not expose `this.getScreenShot(node, ...)` in this version, the
+script may not be running in a context with screenshot permission, or the
+callback method names may differ.
+
+`File saves but Be My Lens cannot read it`
+
+The URI may not grant read permission, `this.getUriForFile(file)` may not map
+that path, or the saved location may be inaccessible. Prefer the Jieshuo cache
+directory if it works; `/sdcard/` is only a fallback.
+
+`Be My Lens reads old image`
+
+The script may be reusing an old URI/file, Jieshuo may cache the URI, or the
+timestamped filename did not change. Confirm the file path and URI toast include
+a fresh timestamp.
+
+`Result appears but is not spoken`
+
+Check that `autoSpeak` is true, device TTS is enabled, and Be My Lens has not
+been interrupted by a newer request. The Android entrypoint already guards
+against stale requests speaking after a newer launch.
+
+`Focused item gives full-screen result instead of cropped/focused result`
+
+The current prototype likely captures the full screen and only changes the
+`mode` prompt. A better final `.ppk` may need Jieshuo node bounds, a cropped
+focused-node screenshot, or extra focused text/bounds in the Android contract.
 
 ## Unknowns Requiring Real Jieshuo Testing
 
