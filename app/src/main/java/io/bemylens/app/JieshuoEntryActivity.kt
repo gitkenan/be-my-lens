@@ -2,7 +2,6 @@ package io.bemylens.app
 
 import android.content.Intent
 import android.net.Uri
-import android.os.Build
 import android.os.Bundle
 import android.speech.tts.TextToSpeech
 import androidx.activity.ComponentActivity
@@ -39,9 +38,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.lifecycleScope
 import io.bemylens.app.data.LensRepository
+import io.bemylens.app.integration.ExternalImageCommand
+import io.bemylens.app.integration.ExternalImageCommandException
+import io.bemylens.app.integration.ExternalImageIntentParser
+import io.bemylens.app.integration.ExternalIntegrationContract
+import io.bemylens.app.integration.ExternalIntegrationContract.Modes
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -105,22 +109,22 @@ class JieshuoEntryActivity : ComponentActivity() {
 
         processingJob = lifecycleScope.launch {
             val result = runCatching {
-                val request = intent.toJieshuoRequest()
+                val command = ExternalImageIntentParser.parse(intent)
+                val imageUri = command.imageUri
+                    ?: throw ExternalImageCommandException("No image received.")
+                validateImageType(intent, imageUri)
+
                 val cachedImageUri = withContext(Dispatchers.IO) {
-                    copyImageToCache(request.imageUri)
+                    copyImageToCache(imageUri)
                 }
 
-                val answer = if (request.prompt.isNullOrBlank()) {
-                    repository.describeImage(cachedImageUri).description
-                } else {
-                    repository.askQuestion(cachedImageUri, request.prompt).answer
-                }
+                val answer = processCommand(command, cachedImageUri)
 
                 JieshuoScreenState.Result(
                     answer = answer,
-                    mode = request.mode,
-                    prompt = request.prompt,
-                    autoSpeak = request.autoSpeak,
+                    mode = command.mode,
+                    prompt = command.prompt,
+                    autoSpeak = command.autoSpeak,
                 )
             }.getOrElse { error ->
                 if (error is CancellationException) {
@@ -140,48 +144,40 @@ class JieshuoEntryActivity : ComponentActivity() {
         }
     }
 
-    private fun Intent.toJieshuoRequest(): JieshuoRequest {
-        val imageUri = receivedImageUri()
-            ?: throw JieshuoInputException("No image received.")
-
-        val type = type ?: contentResolver.getType(imageUri)
+    private fun validateImageType(intent: Intent, imageUri: Uri) {
+        val type = intent.type ?: contentResolver.getType(imageUri)
         if (type != null && !type.startsWith("image/")) {
             throw JieshuoInputException("Unsupported content type: $type")
         }
-
-        return JieshuoRequest(
-            imageUri = imageUri,
-            mode = getStringExtra(EXTRA_MODE).orEmpty().ifBlank { DEFAULT_MODE },
-            prompt = getStringExtra(EXTRA_PROMPT)?.trim()?.takeIf { it.isNotBlank() },
-            autoSpeak = getBooleanExtra(EXTRA_AUTO_SPEAK, true),
-        )
     }
 
-    private fun Intent.receivedImageUri(): Uri? {
-        return streamExtraUri()
-            ?: customImageUriExtra()
-            ?: data
-    }
-
-    private fun Intent.streamExtraUri(): Uri? {
-        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            getParcelableExtra(Intent.EXTRA_STREAM, Uri::class.java)
-        } else {
-            @Suppress("DEPRECATION")
-            getParcelableExtra(Intent.EXTRA_STREAM)
+    private suspend fun processCommand(command: ExternalImageCommand, cachedImageUri: Uri): String {
+        return when (command.mode) {
+            Modes.DESCRIBE_SCREEN -> {
+                command.prompt?.let { prompt ->
+                    repository.askQuestion(cachedImageUri, prompt).answer
+                } ?: repository.describeImage(cachedImageUri).description
+            }
+            Modes.FOCUSED_ITEM -> {
+                repository.askQuestion(
+                    imageUri = cachedImageUri,
+                    question = command.prompt ?: ExternalIntegrationContract.FOCUSED_ITEM_DEFAULT_PROMPT,
+                ).answer
+            }
+            Modes.READ_TEXT -> {
+                command.prompt?.let { prompt ->
+                    repository.askQuestion(cachedImageUri, prompt).answer
+                } ?: repository.readContents(cachedImageUri).contents
+            }
+            Modes.CUSTOM_PROMPT -> {
+                repository.askQuestion(
+                    imageUri = cachedImageUri,
+                    question = command.prompt
+                        ?: throw ExternalImageCommandException("custom_prompt mode requires a prompt extra."),
+                ).answer
+            }
+            else -> throw ExternalImageCommandException("Unsupported mode: ${command.mode}")
         }
-    }
-
-    private fun Intent.customImageUriExtra(): Uri? {
-        val parcelableUri = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            getParcelableExtra(EXTRA_IMAGE_URI, Uri::class.java)
-        } else {
-            @Suppress("DEPRECATION")
-            getParcelableExtra(EXTRA_IMAGE_URI)
-        }
-        if (parcelableUri != null) return parcelableUri
-
-        return getStringExtra(EXTRA_IMAGE_URI)?.let(Uri::parse)
     }
 
     private fun copyImageToCache(sourceUri: Uri): Uri {
@@ -211,12 +207,16 @@ class JieshuoEntryActivity : ComponentActivity() {
     private fun Throwable.toJieshuoErrorState(): JieshuoScreenState.Error {
         val message = when (this) {
             is JieshuoInputException -> message ?: "Unable to use the received image."
+            is ExternalImageCommandException -> message ?: "Unable to use the received command."
             else -> "Image decoding, upload, or backend processing failed."
         }
 
         return JieshuoScreenState.Error(
             message = message,
-            detail = this.cause?.message ?: takeUnless { it is JieshuoInputException }?.message,
+            detail = this.cause?.message
+                ?: takeUnless {
+                    it is JieshuoInputException || it is ExternalImageCommandException
+                }?.message,
         )
     }
 
@@ -228,23 +228,7 @@ class JieshuoEntryActivity : ComponentActivity() {
 
         speaker?.speak(text, TextToSpeech.QUEUE_FLUSH, null, "be-my-lens-jieshuo")
     }
-
-    companion object {
-        const val ACTION_DESCRIBE_IMAGE = "io.bemylens.app.action.DESCRIBE_IMAGE"
-        const val EXTRA_IMAGE_URI = "io.bemylens.app.extra.IMAGE_URI"
-        const val EXTRA_MODE = "mode"
-        const val EXTRA_PROMPT = "prompt"
-        const val EXTRA_AUTO_SPEAK = "autoSpeak"
-        const val DEFAULT_MODE = "describe_screen"
-    }
 }
-
-private data class JieshuoRequest(
-    val imageUri: Uri,
-    val mode: String,
-    val prompt: String?,
-    val autoSpeak: Boolean,
-)
 
 private class JieshuoInputException(
     message: String,
