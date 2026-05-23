@@ -42,6 +42,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
@@ -139,7 +140,7 @@ private fun LensScreen(
 
                 state.errorMessage?.let { error ->
                     MessageCard(
-                        title = "Something went wrong",
+                        title = stringResource(R.string.error_something_went_wrong),
                         body = error,
                         containerColor = MaterialTheme.colorScheme.errorContainer,
                     )
@@ -182,18 +183,22 @@ private fun LensScreen(
 private fun Header() {
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Text(
-            text = "Be My Lens",
+            text = stringResource(R.string.app_name),
             style = MaterialTheme.typography.headlineMedium,
             fontWeight = FontWeight.Bold,
         )
         Text(
-            text = "Take a photo or choose one, then describe it, read text, or ask a question.",
+            text = stringResource(R.string.home_tagline),
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         if (BuildConfig.DEBUG) {
             Text(
-                text = "Debug build: ${BuildConfig.BUILD_MARKER}\nAPI: ${BuildConfig.API_BASE_URL}",
+                text = stringResource(
+                    R.string.debug_build_api,
+                    BuildConfig.BUILD_MARKER,
+                    BuildConfig.API_BASE_URL,
+                ),
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -217,12 +222,12 @@ private fun EmptyState(
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
             Text(
-                text = "Start with an image",
+                text = stringResource(R.string.empty_state_title),
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.SemiBold,
             )
             Text(
-                text = "The quickest path is one image, one description, then follow-up questions if you need more detail.",
+                text = stringResource(R.string.empty_state_body),
                 style = MaterialTheme.typography.bodyMedium,
             )
             Button(
@@ -231,7 +236,7 @@ private fun EmptyState(
                     .fillMaxWidth()
                     .height(56.dp),
             ) {
-                Text("Take photo")
+                Text(stringResource(R.string.action_take_photo))
             }
             OutlinedButton(
                 onClick = onChoosePhoto,
@@ -239,7 +244,7 @@ private fun EmptyState(
                     .fillMaxWidth()
                     .height(56.dp),
             ) {
-                Text("Choose photo")
+                Text(stringResource(R.string.action_choose_photo))
             }
         }
     }
@@ -260,7 +265,7 @@ private fun SelectedImagePanel(
         ) {
             AsyncImage(
                 model = imageUri,
-                contentDescription = "Selected image preview",
+                contentDescription = stringResource(R.string.selected_image_preview),
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(280.dp),
@@ -277,7 +282,7 @@ private fun SelectedImagePanel(
                         .fillMaxWidth()
                         .height(56.dp),
                 ) {
-                    Text("Describe image")
+                    Text(stringResource(R.string.action_describe_image))
                 }
                 OutlinedButton(
                     onClick = onAskQuestion,
@@ -286,7 +291,7 @@ private fun SelectedImagePanel(
                         .fillMaxWidth()
                         .height(56.dp),
                 ) {
-                    Text("Ask question")
+                    Text(stringResource(R.string.action_ask_question))
                 }
                 OutlinedButton(
                     onClick = onReadContents,
@@ -295,7 +300,7 @@ private fun SelectedImagePanel(
                         .fillMaxWidth()
                         .height(56.dp),
                 ) {
-                    Text("Read contents")
+                    Text(stringResource(R.string.action_read_contents))
                 }
             }
         }
@@ -318,7 +323,7 @@ private fun AnswerCard(
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Text(
-                text = "Latest answer",
+                text = stringResource(R.string.answer_latest),
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold,
             )
@@ -327,7 +332,7 @@ private fun AnswerCard(
                 style = MaterialTheme.typography.bodyLarge,
             )
             TextButton(onClick = onSpeak, contentPadding = PaddingValues(0.dp)) {
-                Text("Read aloud")
+                Text(stringResource(R.string.action_read_aloud))
             }
         }
     }
@@ -343,14 +348,14 @@ private fun FollowUpSection(
     onShortcut: (String) -> Unit,
 ) {
     val shortcuts = listOf(
-        "What objects are here?",
-        "Any hazards?",
-        "Describe in more detail",
+        stringResource(R.string.shortcut_objects),
+        stringResource(R.string.shortcut_hazards),
+        stringResource(R.string.shortcut_more_detail),
     )
 
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text(
-            text = "Ask question",
+            text = stringResource(R.string.question_section_title),
             style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.SemiBold,
         )
@@ -370,8 +375,8 @@ private fun FollowUpSection(
             onValueChange = onQuestionChange,
             modifier = Modifier.fillMaxWidth(),
             enabled = enabled,
-            label = { Text("Question") },
-            placeholder = { Text("Ask about text, objects, colors, or layout") },
+            label = { Text(stringResource(R.string.question_label)) },
+            placeholder = { Text(stringResource(R.string.question_placeholder)) },
         )
 
         Button(
@@ -379,7 +384,7 @@ private fun FollowUpSection(
             enabled = enabled && currentQuestion.isNotBlank(),
             modifier = Modifier.fillMaxWidth(),
         ) {
-            Text("Send question")
+            Text(stringResource(R.string.action_send_question))
         }
 
         if (messages.isNotEmpty()) {
@@ -413,7 +418,11 @@ private fun MessageBubble(message: ChatMessage) {
             verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
             Text(
-                text = if (isAssistant) "Assistant" else "You",
+                text = if (isAssistant) {
+                    stringResource(R.string.chat_role_assistant)
+                } else {
+                    stringResource(R.string.chat_role_user)
+                },
                 style = MaterialTheme.typography.labelLarge,
                 fontWeight = FontWeight.SemiBold,
             )
