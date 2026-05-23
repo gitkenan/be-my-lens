@@ -1,8 +1,21 @@
 # Jieshuo Lua Prototype Notes
 
 This note captures the current discovery work for a future Jieshuo `.ppk`
-extension. It is intentionally a prototype-level note, not the final extension
-contract.
+extension. The end-to-end Jieshuo to Be My Lens launch path has now been
+validated on a real device, but the files here are still prototype-level scripts
+rather than a polished packaged extension.
+
+## Real-Device Validation
+
+Validated on a real device with Jieshuo installed:
+
+- no-image explicit launch opens Be My Lens
+- `describe_screen` screenshot flow opens Be My Lens and processes the image
+- `focused_item` screenshot flow opens Be My Lens and processes the image
+- Be My Lens receives the URI, copies it locally, sends it through the existing
+  Android/backend image pipeline, and speaks the result
+
+No Android app contract issue was found during this test pass.
 
 ## Sources Found
 
@@ -50,8 +63,8 @@ That suggests Jieshuo may expose:
 - a bitmap-like callback value that supports `compress(...)`
 - `this.getUriForFile(File(...))`, returning a shareable content URI
 
-These APIs still need real-device validation because they appear to be
-Jieshuo-specific and are not documented in an official English SDK.
+These Jieshuo-specific APIs are now confirmed for the tested device/version, but
+they are still not documented in an official English SDK.
 
 Android's platform APIs support the underlying pieces used here:
 
@@ -65,7 +78,7 @@ Android's platform APIs support the underlying pieces used here:
 
 ## Can Jieshuo Launch Be My Lens?
 
-Most likely yes.
+Yes. This has been validated on a real device.
 
 The Android side exposes an exported Activity:
 
@@ -86,7 +99,7 @@ intent-filter matching changes later.
 
 ## Most Likely Lua Shape
 
-The runnable prototype is:
+The original diagnostic harness is:
 
 ```text
 prototypes/jieshuo/describe_image.lua
@@ -119,57 +132,68 @@ autoSpeak = true
 with no image URI. Be My Lens should open and show its no-image error. That is
 expected for this smoke test.
 
-Full screen or focused-item screenshot path:
+The current user-facing prototype actions are:
+
+```text
+prototypes/jieshuo/describe_screen.lua
+prototypes/jieshuo/describe_focused_item.lua
+```
+
+These are standalone scripts intended to be easier to import or bind as Jieshuo
+actions. They keep only concise user-facing feedback:
+
+- `Be My Lens: Describe screen with Be My Lens`
+- `Be My Lens: Describe focused item with Be My Lens`
+- `Be My Lens: Opening`
+- short failure messages if capture, file save, URI generation, or launch fails
+
+Detailed file paths and URIs are printed for debugging and can be surfaced as
+toasts by setting `DEBUG = true` near the top of either script.
+
+Current action-script shape, abridged:
 
 ```lua
 require "import"
 import "android.content.Intent"
 import "android.content.ComponentName"
 import "android.graphics.Bitmap"
+import "android.widget.Toast"
 import "java.io.File"
 import "java.io.FileOutputStream"
 
-local packageName = "io.bemylens.app"
-local activityName = "io.bemylens.app.JieshuoEntryActivity"
-local action = "io.bemylens.app.action.DESCRIBE_IMAGE"
-local extraImageUri = "io.bemylens.app.extra.IMAGE_URI"
+local MODE = "describe_screen" -- or "focused_item"
 
-local function launchBeMyLens(imageUri, mode, prompt, autoSpeak)
+local function launchBeMyLens(uri)
   local intent = Intent()
-    .setAction(action)
-    .setComponent(ComponentName(packageName, activityName))
-    .setPackage(packageName)
+    .setAction("io.bemylens.app.action.DESCRIBE_IMAGE")
+    .setComponent(ComponentName(
+      "io.bemylens.app",
+      "io.bemylens.app.JieshuoEntryActivity"
+    ))
+    .setPackage("io.bemylens.app")
     .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-    .putExtra("mode", mode or "describe_screen")
-    .putExtra("autoSpeak", autoSpeak ~= false)
+    .putExtra("mode", MODE)
+    .putExtra("autoSpeak", true)
 
-  if prompt ~= nil and prompt ~= "" then
-    intent.putExtra("prompt", prompt)
-  end
-
-  if imageUri ~= nil then
-    intent.setDataAndType(imageUri, "image/png")
-    intent.putExtra(Intent.EXTRA_STREAM, imageUri)
-    intent.putExtra(extraImageUri, imageUri)
-  end
-
+  intent.setDataAndType(uri, "image/png")
+  intent.putExtra(Intent.EXTRA_STREAM, uri)
+  intent.putExtra("io.bemylens.app.extra.IMAGE_URI", uri)
   this.startActivity(intent)
 end
 
 this.getScreenShot(node, {
   onScreenCaptureDone = function(bitmap)
-    local file = File("/sdcard/", "be_my_lens_jieshuo_<timestamp>.png")
-    bitmap.compress(Bitmap.CompressFormat.PNG, 90, FileOutputStream(file))
-    local uri = this.getUriForFile(file)
-    launchBeMyLens(uri, "describe_screen", nil, true)
+    -- The runnable scripts save to cache first, then fall back if needed.
+    local uri = saveScreenshotAndCreateUri(bitmap)
+    launchBeMyLens(uri)
   end
 })
 ```
 
-Focused-item mode probably uses the same capture API first:
+Focused-item mode uses the same capture and launch path with:
 
 ```lua
-launchBeMyLens(uri, "focused_item", nil, true)
+local MODE = "focused_item"
 ```
 
 If Jieshuo provides a cropped focused-node screenshot, pass that. If it only
@@ -199,37 +223,37 @@ easier to diagnose.
 
 ## Prototype Storage Path
 
-The Lua prototype tries to save screenshots in this order:
+The user-facing Lua scripts save screenshots in this order:
 
 1. Jieshuo/context external cache directory from `this.getExternalCacheDir()`
 2. Jieshuo/context cache directory from `this.getCacheDir()`
-3. `/sdcard/` as a temporary prototype fallback
+3. `/sdcard/BeMyLens` as a temporary prototype fallback
 
-The filename is timestamped:
+The filename is timestamped and mode-specific:
 
 ```text
-be_my_lens_jieshuo_<timestamp>.png
+be_my_lens_<mode>_<timestamp>.png
 ```
 
 The `/sdcard/` fallback is only for first-device testing. If it is the only
 path that works, the final `.ppk` should revisit storage and URI grants before
 release.
 
+If saving or `this.getUriForFile(file)` fails for one location, the scripts try
+the next location before reporting an error.
+
 ## Prototype Feedback
 
-The script uses both `print(...)` and Android `Toast` messages where available.
-It reports:
+The user-facing scripts use short Android `Toast` messages plus `print(...)`.
+They report:
 
-- starting launch
-- screenshot capture attempted
-- screenshot capture succeeded or failed
-- file save path
-- generated URI
-- `startActivity` call
-- exception messages from launch, capture, save, and URI generation
+- action started
+- Be My Lens opening
+- screenshot/capture/save/URI/launch failures
 
-This is intentionally noisy so the first blind-user testing pass has audible or
-debuggable progress feedback.
+The diagnostic harness remains noisier and can still be used when something
+breaks. In the user-facing scripts, set `DEBUG = true` for file path and URI
+toasts.
 
 ## Focused Text And Bounds
 
@@ -268,17 +292,17 @@ Android-side contract.
 ## Simplest First Tests
 
 1. Set `TEST_MODE = "no_image"`.
-   Run the script from Jieshuo. This verifies component/action/extras and should
-   show Be My Lens' no-image error screen.
+   Run `prototypes/jieshuo/describe_image.lua` from Jieshuo. This verifies
+   component/action/extras and should show Be My Lens' no-image error screen.
 
-2. Set `TEST_MODE = "describe_screen"`.
-   Run the script from Jieshuo. This should capture a screenshot, save it to a
-   timestamped PNG, create a URI, and launch Be My Lens with
+2. Run `prototypes/jieshuo/describe_screen.lua`.
+   This should capture a screenshot, save it to a timestamped PNG, create a URI,
+   and launch Be My Lens with
    `mode = "describe_screen"`.
 
-3. Set `TEST_MODE = "focused_item"`.
-   Run the script from Jieshuo. This currently uses the same screenshot capture
-   path, but launches Be My Lens with `mode = "focused_item"`.
+3. Run `prototypes/jieshuo/describe_focused_item.lua`.
+   This uses the same screenshot capture path, but launches Be My Lens with
+   `mode = "focused_item"`.
 
 4. If capture fails, use a hardcoded image URI from Jieshuo's existing
    screenshot/share behavior or another known readable image and call
@@ -286,7 +310,8 @@ Android-side contract.
 
 ## Real-Device Test Checklist
 
-Use a real device with Jieshuo installed and Be My Lens debug installed.
+Use a real device with Jieshuo installed and Be My Lens debug installed. The
+first pass of this checklist has already succeeded.
 
 1. Build and install Be My Lens debug APK.
    Example from this repo: `./gradlew :app:assembleDebug`, then install the APK
@@ -294,7 +319,8 @@ Use a real device with Jieshuo installed and Be My Lens debug installed.
 
 2. Install or open Jieshuo and confirm its screen-reader service is active.
 
-3. Import or run `prototypes/jieshuo/describe_image.lua` in Jieshuo.
+3. Import or run `prototypes/jieshuo/describe_image.lua` in Jieshuo for the
+   diagnostic no-image test.
 
 4. Run the no-image launch test with `TEST_MODE = "no_image"`.
 
@@ -302,16 +328,17 @@ Use a real device with Jieshuo installed and Be My Lens debug installed.
 
 6. Verify Be My Lens shows the expected no-image error.
 
-7. Run the full-screen screenshot test with `TEST_MODE = "describe_screen"`.
+7. Import or run `prototypes/jieshuo/describe_screen.lua`.
 
 8. Verify screenshot capture is attempted and succeeds according to toast/log
    output.
 
-9. Verify the generated URI is logged/toasted.
+9. Verify the generated URI is logged. Set `DEBUG = true` in the action script
+   if it needs to be surfaced as a toast.
 
 10. Verify Be My Lens opens, processing starts, and the result is spoken.
 
-11. Run the focused-item screenshot test with `TEST_MODE = "focused_item"`.
+11. Import or run `prototypes/jieshuo/describe_focused_item.lua`.
 
 12. Verify the result uses the focused-item behavior, or record that Jieshuo only
    supplied a full-screen image.
@@ -362,20 +389,46 @@ against stale requests speaking after a newer launch.
 
 `Focused item gives full-screen result instead of cropped/focused result`
 
-The current prototype likely captures the full screen and only changes the
-`mode` prompt. A better final `.ppk` may need Jieshuo node bounds, a cropped
-focused-node screenshot, or extra focused text/bounds in the Android contract.
+The current usable prototype uses Jieshuo screenshot capture and changes the
+`mode` prompt. If a tester expects a cropped result, a better final `.ppk` may
+need Jieshuo node bounds, a cropped focused-node screenshot, or extra focused
+text/bounds in the Android contract.
+
+## Packaging Path
+
+The simplest path toward a reusable Jieshuo add-on is:
+
+1. Keep two standalone actions:
+   `describe_screen.lua` and `describe_focused_item.lua`.
+
+2. Import each script into Jieshuo as a custom function/action and assign clear
+   labels:
+   `Describe screen with Be My Lens` and
+   `Describe focused item with Be My Lens`.
+
+3. Bind each action to a gesture, menu item, or Jieshuo extension command.
+
+4. Test with Be My Lens installed from the debug APK first.
+
+5. Once the import flow is repeatable, package the same two scripts into the
+   smallest `.ppk` structure Jieshuo expects.
+
+6. Keep `describe_image.lua` out of the tester-facing package unless a
+   diagnostic action is intentionally needed.
+
+The final package should avoid shared Lua modules unless Jieshuo's `.ppk`
+loader is confirmed to resolve local imports reliably. Standalone scripts are
+more repetitive, but they are safer for the first shareable blind-tester build.
 
 ## Unknowns Requiring Real Jieshuo Testing
 
-- Whether current Jieshuo versions still expose `this.getScreenShot(node, ...)`.
-- Whether screenshot capture returns a mutable Android `Bitmap` or another
-  wrapper type.
-- Whether `this.getUriForFile(file)` grants temporary read permission to Be My
-  Lens reliably, or whether `Intent.FLAG_GRANT_READ_URI_PERMISSION` is enough.
-- Whether storage paths like `/sdcard/` are writable on the target Android
-  versions without extra permission.
-- Whether `node` always refers to the focused item for extension launches.
+- Exact `.ppk` directory/metadata format for the target Jieshuo build.
+- Whether standalone scripts or shared Lua modules are preferred inside `.ppk`.
+- Whether `this.getExternalCacheDir()` is available across all target Jieshuo
+  versions and Android versions.
+- Whether the fallback `/sdcard/BeMyLens` path is ever needed on tester devices.
+- Whether `node` always refers to the focused item for extension launches across
+  Jieshuo versions.
 - Whether Jieshuo exposes a built-in cropped focused-node screenshot API.
 - Whether Jieshuo exposes current focused text or bounds through direct helper
   APIs in addition to raw `node` methods.
