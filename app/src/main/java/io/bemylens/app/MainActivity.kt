@@ -18,7 +18,7 @@ class MainActivity : ComponentActivity() {
 
         speaker = TextToSpeech(this) { status ->
             if (status == TextToSpeech.SUCCESS) {
-                speaker?.language = Locale.getDefault()
+                speaker?.language = Locale("ar")
             }
         }
 

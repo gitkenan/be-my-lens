@@ -17,11 +17,16 @@ OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4.1-mini")
 OPENAI_RESPONSES_API_URL = "https://api.openai.com/v1/responses"
 OPENAI_CHAT_COMPLETIONS_API_URL = "https://api.openai.com/v1/chat/completions"
-PROMPTS_DIR = Path(__file__).parent / "prompts" / "en"
+PROMPT_LOCALE = os.getenv("PROMPT_LOCALE", "ar").strip() or "ar"
+PROMPTS_DIR = Path(__file__).parent / "prompts" / PROMPT_LOCALE
+if not PROMPTS_DIR.exists():
+    PROMPTS_DIR = Path(__file__).parent / "prompts" / "en"
 
 DESCRIBE_IMAGE_PROMPT = (PROMPTS_DIR / "describe_image.txt").read_text(encoding="utf-8").strip()
 READ_CONTENTS_PROMPT = (PROMPTS_DIR / "read_contents.txt").read_text(encoding="utf-8").strip()
 ASK_QUESTION_PROMPT = (PROMPTS_DIR / "ask_question.txt").read_text(encoding="utf-8").strip()
+DESCRIBE_IMAGE_QUESTION = "صف هذه الصورة لمستخدم كفيف أو ضعيف البصر."
+READ_CONTENTS_QUESTION = "اقرأ النص الموجود في الصورة."
 
 
 @dataclass
@@ -67,14 +72,14 @@ async def describe(image: UploadFile = File(...)) -> dict[str, str]:
     answer = await ask_model(
         image_data_url=image_data_url,
         developer_prompt=DESCRIBE_IMAGE_PROMPT,
-        user_question="Describe this image for a blind or low-vision user.",
+        user_question=DESCRIBE_IMAGE_QUESTION,
     )
 
     session_id = uuid.uuid4().hex
     SESSIONS[session_id] = Session(
         image_data_url=image_data_url,
         transcript=[
-            ChatTurn(role="user", text="Describe this image for a blind or low-vision user."),
+            ChatTurn(role="user", text=DESCRIBE_IMAGE_QUESTION),
             ChatTurn(role="assistant", text=answer),
         ],
     )
@@ -90,14 +95,14 @@ async def read_contents(image: UploadFile = File(...)) -> dict[str, str]:
     answer = await ask_model(
         image_data_url=image_data_url,
         developer_prompt=READ_CONTENTS_PROMPT,
-        user_question="Read the text in the picture.",
+        user_question=READ_CONTENTS_QUESTION,
     )
 
     session_id = uuid.uuid4().hex
     SESSIONS[session_id] = Session(
         image_data_url=image_data_url,
         transcript=[
-            ChatTurn(role="user", text="Read the text in the picture."),
+            ChatTurn(role="user", text=READ_CONTENTS_QUESTION),
             ChatTurn(role="assistant", text=answer),
         ],
     )
@@ -111,7 +116,7 @@ async def chat(image: UploadFile = File(...), question: str = Form(...)) -> dict
 
     clean_question = question.strip()
     if not clean_question:
-        raise HTTPException(status_code=400, detail="Question must not be blank.")
+        raise HTTPException(status_code=400, detail="يجب ألا يكون السؤال فارغا.")
 
     image_data_url = to_data_url(content, image.content_type or "image/jpeg")
     answer = await ask_chat_model(
@@ -136,11 +141,11 @@ async def followup(body: FollowUpBody) -> dict[str, str]:
     ensure_api_key()
     session = SESSIONS.get(body.sessionId)
     if session is None:
-        raise HTTPException(status_code=404, detail="Session not found.")
+        raise HTTPException(status_code=404, detail="لم يتم العثور على الجلسة.")
 
     question = body.question.strip()
     if not question:
-        raise HTTPException(status_code=400, detail="Question must not be blank.")
+        raise HTTPException(status_code=400, detail="يجب ألا يكون السؤال فارغا.")
 
     answer = await ask_chat_model(
         image_data_url=session.image_data_url,
@@ -158,7 +163,7 @@ async def followup(body: FollowUpBody) -> dict[str, str]:
 
 def ensure_api_key() -> None:
     if not OPENAI_API_KEY:
-        raise HTTPException(status_code=500, detail="Missing OPENAI_API_KEY.")
+        raise HTTPException(status_code=500, detail="متغير OPENAI_API_KEY غير مضبوط.")
 
 
 def to_data_url(content: bytes, content_type: str) -> str:
@@ -169,7 +174,7 @@ def to_data_url(content: bytes, content_type: str) -> str:
 async def read_image_payload(image: UploadFile) -> bytes:
     content = await image.read()
     if not content:
-        raise HTTPException(status_code=400, detail="Image payload was empty.")
+        raise HTTPException(status_code=400, detail="ملف الصورة فارغ.")
     return content
 
 
@@ -216,7 +221,7 @@ async def ask_model(image_data_url: str, developer_prompt: str, user_question: s
     data = response.json()
     text = extract_output_text(data)
     if not text:
-        raise HTTPException(status_code=502, detail="The model returned no text output.")
+        raise HTTPException(status_code=502, detail="لم يرجع النموذج أي نص.")
     return text.strip()
 
 
@@ -247,7 +252,7 @@ async def ask_chat_model(
     data = response.json()
     text = extract_chat_output_text(data)
     if not text:
-        raise HTTPException(status_code=502, detail="The model returned no text output.")
+        raise HTTPException(status_code=502, detail="لم يرجع النموذج أي نص.")
     return text.strip()
 
 

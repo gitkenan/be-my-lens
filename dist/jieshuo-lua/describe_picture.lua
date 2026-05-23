@@ -7,10 +7,10 @@
 local MODE = "describe_screen" -- "describe_screen" or "focused_item"
 local DEBUG = false
 
-local ACTION_LABEL = "Describe picture with Be My Lens"
+local ACTION_LABEL = "وصف الصورة باستخدام كن عيني"
 
 if MODE == "focused_item" then
-  ACTION_LABEL = "Describe focused item with Be My Lens"
+  ACTION_LABEL = "وصف العنصر المحدد باستخدام كن عيني"
 end
 
 require "import"
@@ -28,7 +28,7 @@ local ACTION_DESCRIBE_IMAGE = "io.bemylens.app.action.DESCRIBE_IMAGE"
 local EXTRA_IMAGE_URI = "io.bemylens.app.extra.IMAGE_URI"
 
 local function toast(message)
-  local text = "Be My Lens: " .. tostring(message)
+  local text = "كن عيني: " .. tostring(message)
   print(text)
   pcall(function()
     Toast.makeText(this, text, Toast.LENGTH_SHORT).show()
@@ -39,7 +39,7 @@ local function debug(message)
   if DEBUG then
     toast(message)
   else
-    print("Be My Lens: " .. tostring(message))
+    print("كن عيني: " .. tostring(message))
   end
 end
 
@@ -66,17 +66,17 @@ local function outputDirectories()
     return this.getExternalCacheDir()
   end)
   if okExternal and externalDir ~= nil then
-    addDirectoryCandidate(candidates, File(externalDir, "be_my_lens"), "external cache")
+    addDirectoryCandidate(candidates, File(externalDir, "be_my_lens"), "ذاكرة التخزين المؤقت الخارجية")
   end
 
   local okCache, cacheDir = pcall(function()
     return this.getCacheDir()
   end)
   if okCache and cacheDir ~= nil then
-    addDirectoryCandidate(candidates, File(cacheDir, "be_my_lens"), "cache")
+    addDirectoryCandidate(candidates, File(cacheDir, "be_my_lens"), "ذاكرة التخزين المؤقت")
   end
 
-  addDirectoryCandidate(candidates, File("/sdcard/BeMyLens"), "/sdcard fallback")
+  addDirectoryCandidate(candidates, File("/sdcard/BeMyLens"), "احتياطي /sdcard")
   return candidates
 end
 
@@ -89,7 +89,7 @@ local function saveBitmap(bitmap, file)
     output = nil
 
     if saved == false then
-      error("bitmap.compress returned false")
+      error("فشل ضغط الصورة")
     end
   end)
 
@@ -113,7 +113,7 @@ local function saveScreenshotAndCreateUri(bitmap)
     local ok, result = pcall(function()
       candidate.dir.mkdirs()
       local file = File(candidate.dir, "be_my_lens_" .. MODE .. "_" .. timestamp() .. ".png")
-      debug("screenshot path from " .. candidate.label .. ": " .. tostring(file.getAbsolutePath()))
+      debug("مسار لقطة الشاشة من " .. candidate.label .. ": " .. tostring(file.getAbsolutePath()))
 
       local saved, saveError = saveBitmap(bitmap, file)
       if not saved then
@@ -122,7 +122,7 @@ local function saveScreenshotAndCreateUri(bitmap)
 
       local uri = this.getUriForFile(file)
       if uri == nil then
-        error("getUriForFile returned nil")
+        error("تعذر إنشاء رابط للصورة")
       end
 
       return uri
@@ -133,14 +133,14 @@ local function saveScreenshotAndCreateUri(bitmap)
     end
 
     lastError = tostring(result)
-    debug("storage attempt failed for " .. candidate.label .. ": " .. lastError)
+    debug("فشلت محاولة الحفظ في " .. candidate.label .. ": " .. lastError)
   end
 
-  return nil, lastError or "unknown storage error"
+  return nil, lastError or "خطأ تخزين غير معروف"
 end
 
 local function launchBeMyLens(uri)
-  toast("Opening")
+  toast("جار الفتح")
 
   local ok, errorMessage = pcall(function()
     local intent = Intent()
@@ -155,12 +155,12 @@ local function launchBeMyLens(uri)
     intent.putExtra(Intent.EXTRA_STREAM, uri)
     intent.putExtra(EXTRA_IMAGE_URI, uri)
 
-    debug("uri: " .. tostring(uri))
+    debug("الرابط: " .. tostring(uri))
     this.startActivity(intent)
   end)
 
   if not ok then
-    toast("Could not open app. " .. tostring(errorMessage))
+    toast("تعذر فتح التطبيق. " .. tostring(errorMessage))
   end
 
   return ok
@@ -174,7 +174,7 @@ local function captureAndLaunch()
       local ok, errorMessage = pcall(function()
         local uri, uriError = saveScreenshotAndCreateUri(bitmap)
         if uri == nil then
-          toast("Could not save screenshot. " .. tostring(uriError))
+          toast("تعذر حفظ لقطة الشاشة. " .. tostring(uriError))
           return
         end
 
@@ -182,16 +182,16 @@ local function captureAndLaunch()
       end)
 
       if not ok then
-        toast("Could not prepare screenshot. " .. tostring(errorMessage))
+        toast("تعذر تجهيز لقطة الشاشة. " .. tostring(errorMessage))
       end
     end,
 
     onScreenCaptureFailed = function(errorCode)
-      toast("Screenshot failed. " .. tostring(errorCode))
+      toast("فشل التقاط الشاشة. " .. tostring(errorCode))
     end,
 
     onScreenCaptureError = function(errorMessage)
-      toast("Screenshot failed. " .. tostring(errorMessage))
+      toast("فشل التقاط الشاشة. " .. tostring(errorMessage))
     end,
   }
 
@@ -200,7 +200,7 @@ local function captureAndLaunch()
   end)
 
   if not ok then
-    toast("Could not capture screenshot. " .. tostring(errorMessage))
+    toast("تعذر التقاط الشاشة. " .. tostring(errorMessage))
   end
 
   return ok

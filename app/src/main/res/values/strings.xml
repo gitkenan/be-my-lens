@@ -1,54 +1,54 @@
 <resources>
-    <string name="app_name">Be My Lens</string>
-    <string name="home_tagline">Take a photo or choose one, then describe it, read text, or ask a question.</string>
-    <string name="debug_build_api">Debug build: %1$s\nAPI: %2$s</string>
+    <string name="app_name">كن عيني</string>
+    <string name="home_tagline">التقط صورة أو اختر واحدة، ثم صفها أو اقرأ النص أو اطرح سؤالا.</string>
+    <string name="debug_build_api">نسخة تصحيح الأخطاء: %1$s\nAPI: %2$s</string>
 
-    <string name="empty_state_title">Start with an image</string>
-    <string name="empty_state_body">The quickest path is one image, one description, then follow-up questions if you need more detail.</string>
-    <string name="action_take_photo">Take photo</string>
-    <string name="action_choose_photo">Choose photo</string>
+    <string name="empty_state_title">ابدأ بصورة</string>
+    <string name="empty_state_body">أسرع طريقة هي صورة واحدة، ثم وصف واحد، ثم أسئلة متابعة إذا احتجت إلى تفاصيل أكثر.</string>
+    <string name="action_take_photo">التقاط صورة</string>
+    <string name="action_choose_photo">اختيار صورة</string>
 
-    <string name="selected_image_preview">Selected image preview</string>
-    <string name="action_describe_image">Describe image</string>
-    <string name="action_ask_question">Ask question</string>
-    <string name="action_read_contents">Read contents</string>
+    <string name="selected_image_preview">معاينة الصورة المحددة</string>
+    <string name="action_describe_image">وصف الصورة</string>
+    <string name="action_ask_question">طرح سؤال</string>
+    <string name="action_read_contents">قراءة المحتوى</string>
 
-    <string name="error_something_went_wrong">Something went wrong</string>
-    <string name="answer_latest">Latest answer</string>
-    <string name="action_read_aloud">Read aloud</string>
+    <string name="error_something_went_wrong">حدث خطأ</string>
+    <string name="answer_latest">آخر إجابة</string>
+    <string name="action_read_aloud">القراءة بصوت عال</string>
 
-    <string name="shortcut_objects">What objects are here?</string>
-    <string name="shortcut_hazards">Any hazards?</string>
-    <string name="shortcut_more_detail">Describe in more detail</string>
-    <string name="question_section_title">Ask question</string>
-    <string name="question_label">Question</string>
-    <string name="question_placeholder">Ask about text, objects, colors, or layout</string>
-    <string name="action_send_question">Send question</string>
-    <string name="chat_role_assistant">Assistant</string>
-    <string name="chat_role_user">You</string>
+    <string name="shortcut_objects">ما الأشياء الموجودة هنا؟</string>
+    <string name="shortcut_hazards">هل توجد مخاطر؟</string>
+    <string name="shortcut_more_detail">صف بتفصيل أكثر</string>
+    <string name="question_section_title">اطرح سؤالا</string>
+    <string name="question_label">السؤال</string>
+    <string name="question_placeholder">اسأل عن النص أو الأشياء أو الألوان أو التخطيط</string>
+    <string name="action_send_question">إرسال السؤال</string>
+    <string name="chat_role_assistant">المساعد</string>
+    <string name="chat_role_user">أنت</string>
 
-    <string name="error_failed_describe_image">Failed to describe image.</string>
-    <string name="error_failed_read_contents">Failed to read image contents.</string>
-    <string name="error_failed_send_follow_up">Failed to send follow-up question.</string>
-    <string name="debug_error_build">Build: %1$s</string>
+    <string name="error_failed_describe_image">تعذر وصف الصورة.</string>
+    <string name="error_failed_read_contents">تعذرت قراءة محتوى الصورة.</string>
+    <string name="error_failed_send_follow_up">تعذر إرسال سؤال المتابعة.</string>
+    <string name="debug_error_build">الإصدار: %1$s</string>
     <string name="debug_error_detail">%1$s: %2$s</string>
 
-    <string name="prompt_focused_item_default">Describe only the focused item or control. Ignore unrelated background content unless necessary.</string>
+    <string name="prompt_focused_item_default">صف العنصر أو عنصر التحكم الذي عليه التركيز فقط. تجاهل محتوى الخلفية غير المرتبط إلا إذا كان ضروريا.</string>
 
-    <string name="jieshuo_processing">Describing image...</string>
-    <string name="result_description">Description</string>
-    <string name="result_answer">Answer</string>
-    <string name="action_close">Close</string>
-    <string name="error_unable_describe_image">Unable to describe image</string>
-    <string name="error_no_image_received">No image received.</string>
-    <string name="error_unsupported_content_type">Unsupported content type: %1$s</string>
-    <string name="error_custom_prompt_required">custom_prompt mode requires a prompt extra.</string>
-    <string name="error_unsupported_mode_with_supported">Unsupported mode: %1$s. Supported modes: %2$s</string>
-    <string name="error_unsupported_image_uri">Unsupported image URI: %1$s</string>
-    <string name="error_unknown_image_uri_scheme">none</string>
-    <string name="error_unable_open_received_image">Unable to open received image.</string>
-    <string name="error_no_received_image_permission">Be My Lens does not have permission to read the received image.</string>
-    <string name="error_unable_copy_received_image">Unable to copy the received image.</string>
-    <string name="error_unable_use_received_image">Unable to use the received image.</string>
-    <string name="error_processing_failed">Image decoding, upload, or backend processing failed.</string>
+    <string name="jieshuo_processing">جار وصف الصورة...</string>
+    <string name="result_description">الوصف</string>
+    <string name="result_answer">الإجابة</string>
+    <string name="action_close">إغلاق</string>
+    <string name="error_unable_describe_image">تعذر وصف الصورة</string>
+    <string name="error_no_image_received">لم يتم استلام صورة.</string>
+    <string name="error_unsupported_content_type">نوع المحتوى غير مدعوم: %1$s</string>
+    <string name="error_custom_prompt_required">يتطلب وضع custom_prompt تمرير prompt إضافي.</string>
+    <string name="error_unsupported_mode_with_supported">الوضع غير مدعوم: %1$s. الأوضاع المدعومة: %2$s</string>
+    <string name="error_unsupported_image_uri">رابط الصورة غير مدعوم: %1$s</string>
+    <string name="error_unknown_image_uri_scheme">لا يوجد</string>
+    <string name="error_unable_open_received_image">تعذر فتح الصورة المستلمة.</string>
+    <string name="error_no_received_image_permission">لا يملك التطبيق إذنا لقراءة الصورة المستلمة.</string>
+    <string name="error_unable_copy_received_image">تعذر نسخ الصورة المستلمة.</string>
+    <string name="error_unable_use_received_image">تعذر استخدام الصورة المستلمة.</string>
+    <string name="error_processing_failed">فشل فك ترميز الصورة أو رفعها أو معالجتها في الخادم.</string>
 </resources>
