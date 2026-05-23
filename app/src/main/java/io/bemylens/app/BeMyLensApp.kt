@@ -32,6 +32,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -42,8 +43,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -58,11 +61,13 @@ fun BeMyLensApp(
     viewModel: LensViewModel = viewModel(),
 ) {
     MaterialTheme {
-        Surface(modifier = Modifier.fillMaxSize()) {
-            LensScreen(
-                viewModel = viewModel,
-                onSpeakText = onSpeakText,
-            )
+        CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
+            Surface(modifier = Modifier.fillMaxSize()) {
+                LensScreen(
+                    viewModel = viewModel,
+                    onSpeakText = onSpeakText,
+                )
+            }
         }
     }
 }

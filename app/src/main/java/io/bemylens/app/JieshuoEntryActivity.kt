@@ -27,6 +27,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -34,8 +35,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.lifecycleScope
 import io.bemylens.app.data.LensRepository
@@ -69,7 +72,7 @@ class JieshuoEntryActivity : ComponentActivity() {
         speaker = TextToSpeech(this) { status ->
             if (status == TextToSpeech.SUCCESS) {
                 ttsReady = true
-                speaker?.language = Locale.getDefault()
+                speaker?.language = Locale("ar")
                 pendingSpeech?.let { text ->
                     pendingSpeech = null
                     speak(text)
@@ -285,25 +288,27 @@ private fun JieshuoEntryScreen(
     onClose: () -> Unit,
 ) {
     MaterialTheme {
-        Surface(modifier = Modifier.fillMaxSize()) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(MaterialTheme.colorScheme.background)
-                    .statusBarsPadding()
-                    .padding(20.dp),
-            ) {
-                when (state) {
-                    JieshuoScreenState.Processing -> ProcessingCard()
-                    is JieshuoScreenState.Result -> ResultCard(
-                        state = state,
-                        onSpeak = onSpeak,
-                        onClose = onClose,
-                    )
-                    is JieshuoScreenState.Error -> ErrorCard(
-                        state = state,
-                        onClose = onClose,
-                    )
+        CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
+            Surface(modifier = Modifier.fillMaxSize()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(MaterialTheme.colorScheme.background)
+                        .statusBarsPadding()
+                        .padding(20.dp),
+                ) {
+                    when (state) {
+                        JieshuoScreenState.Processing -> ProcessingCard()
+                        is JieshuoScreenState.Result -> ResultCard(
+                            state = state,
+                            onSpeak = onSpeak,
+                            onClose = onClose,
+                        )
+                        is JieshuoScreenState.Error -> ErrorCard(
+                            state = state,
+                            onClose = onClose,
+                        )
+                    }
                 }
             }
         }
