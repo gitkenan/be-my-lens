@@ -2,6 +2,9 @@ package io.bemylens.app.integration
 
 import android.net.FakeUri
 import android.net.Uri
+import io.bemylens.app.integration.ExternalImageCommandError.CUSTOM_PROMPT_REQUIRED
+import io.bemylens.app.integration.ExternalImageCommandError.NO_IMAGE_RECEIVED
+import io.bemylens.app.integration.ExternalImageCommandError.UNSUPPORTED_MODE
 import io.bemylens.app.integration.ExternalIntegrationContract.Extras
 import io.bemylens.app.integration.ExternalIntegrationContract.Modes
 import org.junit.Assert.assertEquals
@@ -53,7 +56,7 @@ class ExternalImageIntentParserTest {
             ExternalImageIntentParser.parse(source)
         }
 
-        assertEquals("No image received.", error.message)
+        assertEquals(NO_IMAGE_RECEIVED, error.error)
     }
 
     @Test
@@ -85,7 +88,8 @@ class ExternalImageIntentParserTest {
             ExternalImageIntentParser.parse(source)
         }
 
-        assertTrue(error.message!!.contains("Unsupported mode: unknown_mode"))
+        assertEquals(UNSUPPORTED_MODE, error.error)
+        assertEquals("unknown_mode", error.value)
     }
 
     @Test
@@ -99,7 +103,7 @@ class ExternalImageIntentParserTest {
             ExternalImageIntentParser.parse(source)
         }
 
-        assertEquals("custom_prompt mode requires a prompt extra.", error.message)
+        assertEquals(CUSTOM_PROMPT_REQUIRED, error.error)
     }
 
     private data class FakeCommandSource(

@@ -34,14 +34,15 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.lifecycleScope
 import io.bemylens.app.data.LensRepository
 import io.bemylens.app.integration.ExternalImageCommand
+import io.bemylens.app.integration.ExternalImageCommandError
 import io.bemylens.app.integration.ExternalImageCommandException
 import io.bemylens.app.integration.ExternalImageIntentParser
-import io.bemylens.app.integration.ExternalIntegrationContract
 import io.bemylens.app.integration.ExternalIntegrationContract.Modes
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -111,7 +112,9 @@ class JieshuoEntryActivity : ComponentActivity() {
             val result = runCatching {
                 val command = ExternalImageIntentParser.parse(intent)
                 val imageUri = command.imageUri
-                    ?: throw ExternalImageCommandException("No image received.")
+                    ?: throw ExternalImageCommandException(
+                        error = ExternalImageCommandError.NO_IMAGE_RECEIVED,
+                    )
                 validateImageType(intent, imageUri)
 
                 val cachedImageUri = withContext(Dispatchers.IO) {
@@ -147,7 +150,7 @@ class JieshuoEntryActivity : ComponentActivity() {
     private fun validateImageType(intent: Intent, imageUri: Uri) {
         val type = intent.type ?: contentResolver.getType(imageUri)
         if (type != null && !type.startsWith("image/")) {
-            throw JieshuoInputException("Unsupported content type: $type")
+            throw JieshuoInputException(getString(R.string.error_unsupported_content_type, type))
         }
     }
 
@@ -161,7 +164,7 @@ class JieshuoEntryActivity : ComponentActivity() {
             Modes.FOCUSED_ITEM -> {
                 repository.askQuestion(
                     imageUri = cachedImageUri,
-                    question = command.prompt ?: ExternalIntegrationContract.FOCUSED_ITEM_DEFAULT_PROMPT,
+                    question = command.prompt ?: getString(R.string.prompt_focused_item_default),
                 ).answer
             }
             Modes.READ_TEXT -> {
@@ -173,17 +176,27 @@ class JieshuoEntryActivity : ComponentActivity() {
                 repository.askQuestion(
                     imageUri = cachedImageUri,
                     question = command.prompt
-                        ?: throw ExternalImageCommandException("custom_prompt mode requires a prompt extra."),
+                        ?: throw ExternalImageCommandException(
+                            error = ExternalImageCommandError.CUSTOM_PROMPT_REQUIRED,
+                        ),
                 ).answer
             }
-            else -> throw ExternalImageCommandException("Unsupported mode: ${command.mode}")
+            else -> throw ExternalImageCommandException(
+                error = ExternalImageCommandError.UNSUPPORTED_MODE,
+                value = command.mode,
+            )
         }
     }
 
     private fun copyImageToCache(sourceUri: Uri): Uri {
         val scheme = sourceUri.scheme
         if (scheme != "content" && scheme != "file") {
-            throw JieshuoInputException("Unsupported image URI: ${sourceUri.scheme ?: "none"}")
+            throw JieshuoInputException(
+                getString(
+                    R.string.error_unsupported_image_uri,
+                    sourceUri.scheme ?: getString(R.string.error_unknown_image_uri_scheme),
+                ),
+            )
         }
 
         val incomingDir = File(cacheDir, "jieshuo").apply { mkdirs() }
@@ -194,11 +207,11 @@ class JieshuoEntryActivity : ComponentActivity() {
                 imageFile.outputStream().use { output ->
                     input.copyTo(output)
                 }
-            } ?: throw JieshuoInputException("Unable to open received image.")
+            } ?: throw JieshuoInputException(getString(R.string.error_unable_open_received_image))
         } catch (error: SecurityException) {
-            throw JieshuoInputException("Be My Lens does not have permission to read the received image.", error)
+            throw JieshuoInputException(getString(R.string.error_no_received_image_permission), error)
         } catch (error: IOException) {
-            throw JieshuoInputException("Unable to copy the received image.", error)
+            throw JieshuoInputException(getString(R.string.error_unable_copy_received_image), error)
         }
 
         return Uri.fromFile(imageFile)
@@ -206,9 +219,9 @@ class JieshuoEntryActivity : ComponentActivity() {
 
     private fun Throwable.toJieshuoErrorState(): JieshuoScreenState.Error {
         val message = when (this) {
-            is JieshuoInputException -> message ?: "Unable to use the received image."
-            is ExternalImageCommandException -> message ?: "Unable to use the received command."
-            else -> "Image decoding, upload, or backend processing failed."
+            is JieshuoInputException -> message ?: getString(R.string.error_unable_use_received_image)
+            is ExternalImageCommandException -> localizedExternalCommandMessage()
+            else -> getString(R.string.error_processing_failed)
         }
 
         return JieshuoScreenState.Error(
@@ -218,6 +231,20 @@ class JieshuoEntryActivity : ComponentActivity() {
                     it is JieshuoInputException || it is ExternalImageCommandException
                 }?.message,
         )
+    }
+
+    private fun ExternalImageCommandException.localizedExternalCommandMessage(): String {
+        return when (error) {
+            ExternalImageCommandError.UNSUPPORTED_MODE -> getString(
+                R.string.error_unsupported_mode_with_supported,
+                value ?: "",
+                Modes.SUPPORTED.joinToString(),
+            )
+            ExternalImageCommandError.CUSTOM_PROMPT_REQUIRED -> {
+                getString(R.string.error_custom_prompt_required)
+            }
+            ExternalImageCommandError.NO_IMAGE_RECEIVED -> getString(R.string.error_no_image_received)
+        }
     }
 
     private fun speak(text: String) {
@@ -292,7 +319,7 @@ private fun ProcessingCard() {
     ) {
         CircularProgressIndicator()
         Text(
-            text = "Describing image...",
+            text = stringResource(R.string.jieshuo_processing),
             modifier = Modifier.padding(top = 18.dp),
             style = MaterialTheme.typography.titleMedium,
         )
@@ -312,7 +339,7 @@ private fun ResultCard(
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         Text(
-            text = "Be My Lens",
+            text = stringResource(R.string.app_name),
             style = MaterialTheme.typography.headlineSmall,
             fontWeight = FontWeight.Bold,
         )
@@ -326,7 +353,11 @@ private fun ResultCard(
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 Text(
-                    text = if (state.prompt == null) "Description" else "Answer",
+                    text = if (state.prompt == null) {
+                        stringResource(R.string.result_description)
+                    } else {
+                        stringResource(R.string.result_answer)
+                    },
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold,
                 )
@@ -341,14 +372,14 @@ private fun ResultCard(
             modifier = Modifier.fillMaxWidth(),
             contentPadding = PaddingValues(vertical = 14.dp),
         ) {
-            Text("Read aloud")
+            Text(stringResource(R.string.action_read_aloud))
         }
         OutlinedButton(
             onClick = onClose,
             modifier = Modifier.fillMaxWidth(),
             contentPadding = PaddingValues(vertical = 14.dp),
         ) {
-            Text("Close")
+            Text(stringResource(R.string.action_close))
         }
     }
 }
@@ -372,7 +403,7 @@ private fun ErrorCard(
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
                 Text(
-                    text = "Unable to describe image",
+                    text = stringResource(R.string.error_unable_describe_image),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold,
                 )
@@ -396,7 +427,7 @@ private fun ErrorCard(
                 .padding(top = 16.dp),
             contentPadding = PaddingValues(vertical = 14.dp),
         ) {
-            Text("Close")
+            Text(stringResource(R.string.action_close))
         }
     }
 }

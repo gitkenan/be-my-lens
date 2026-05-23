@@ -3,11 +3,13 @@ package io.bemylens.app.ui
 import android.app.Application
 import android.net.Uri
 import android.util.Log
+import androidx.annotation.StringRes
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import io.bemylens.app.BuildConfig
 import io.bemylens.app.ChatMessage
 import io.bemylens.app.ChatRole
+import io.bemylens.app.R
 import io.bemylens.app.data.LensRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -85,7 +87,7 @@ class LensViewModel(application: Application) : AndroidViewModel(application) {
                         isLoading = false,
                         errorMessage = errorMessage(
                             error = error,
-                            fallback = "Failed to describe image.",
+                            fallback = string(R.string.error_failed_describe_image),
                         ),
                     )
                 }
@@ -128,7 +130,7 @@ class LensViewModel(application: Application) : AndroidViewModel(application) {
                         isLoading = false,
                         errorMessage = errorMessage(
                             error = error,
-                            fallback = "Failed to read image contents.",
+                            fallback = string(R.string.error_failed_read_contents),
                         ),
                     )
                 }
@@ -190,7 +192,7 @@ class LensViewModel(application: Application) : AndroidViewModel(application) {
                         isLoading = false,
                         errorMessage = errorMessage(
                             error = error,
-                            fallback = "Failed to send follow-up question.",
+                            fallback = string(R.string.error_failed_send_follow_up),
                         ),
                         messages = it.messages.dropLast(1),
                     )
@@ -205,9 +207,19 @@ class LensViewModel(application: Application) : AndroidViewModel(application) {
         }
 
         return buildString {
-            appendLine("Build: ${BuildConfig.BUILD_MARKER}")
-            appendLine("${error::class.java.name}: ${error.message ?: fallback}")
+            appendLine(string(R.string.debug_error_build, BuildConfig.BUILD_MARKER))
+            appendLine(
+                string(
+                    R.string.debug_error_detail,
+                    error::class.java.name,
+                    error.message ?: fallback,
+                ),
+            )
             append(error.stackTraceToString())
         }
+    }
+
+    private fun string(@StringRes resId: Int, vararg formatArgs: Any): String {
+        return getApplication<Application>().getString(resId, *formatArgs)
     }
 }

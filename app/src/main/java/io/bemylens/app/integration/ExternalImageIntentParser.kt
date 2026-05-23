@@ -13,7 +13,16 @@ data class ExternalImageCommand(
     val autoSpeak: Boolean,
 )
 
-class ExternalImageCommandException(message: String) : IllegalArgumentException(message)
+enum class ExternalImageCommandError {
+    UNSUPPORTED_MODE,
+    CUSTOM_PROMPT_REQUIRED,
+    NO_IMAGE_RECEIVED,
+}
+
+class ExternalImageCommandException(
+    val error: ExternalImageCommandError,
+    val value: String? = null,
+) : IllegalArgumentException(error.name)
 
 object ExternalImageIntentParser {
     fun parse(intent: Intent): ExternalImageCommand {
@@ -28,7 +37,8 @@ object ExternalImageIntentParser {
 
         if (mode !in Modes.SUPPORTED) {
             throw ExternalImageCommandException(
-                "Unsupported mode: $mode. Supported modes: ${Modes.SUPPORTED.joinToString()}",
+                error = ExternalImageCommandError.UNSUPPORTED_MODE,
+                value = mode,
             )
         }
 
@@ -37,11 +47,15 @@ object ExternalImageIntentParser {
             ?.takeIf { it.isNotBlank() }
 
         if (mode == Modes.CUSTOM_PROMPT && prompt == null) {
-            throw ExternalImageCommandException("custom_prompt mode requires a prompt extra.")
+            throw ExternalImageCommandException(
+                error = ExternalImageCommandError.CUSTOM_PROMPT_REQUIRED,
+            )
         }
 
         val imageUri = source.receivedImageUri()
-            ?: throw ExternalImageCommandException("No image received.")
+            ?: throw ExternalImageCommandException(
+                error = ExternalImageCommandError.NO_IMAGE_RECEIVED,
+            )
 
         return ExternalImageCommand(
             mode = mode,

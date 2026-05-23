@@ -24,6 +24,4 @@ object ExternalIntegrationContract {
         )
     }
 
-    const val FOCUSED_ITEM_DEFAULT_PROMPT =
-        "Describe only the focused item or control. Ignore unrelated background content unless necessary."
 }
