@@ -12,12 +12,15 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
@@ -32,7 +35,6 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -43,16 +45,20 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import io.bemylens.app.auth.AuthGate
+import io.bemylens.app.ui.BeMyLensTheme
 import io.bemylens.app.ui.LensViewModel
 import java.io.File
 
@@ -61,15 +67,13 @@ fun BeMyLensApp(
     onSpeakText: (String) -> Unit,
     viewModel: LensViewModel = viewModel(),
 ) {
-    MaterialTheme {
-        CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
-            Surface(modifier = Modifier.fillMaxSize()) {
-                AuthGate {
-                    LensScreen(
-                        viewModel = viewModel,
-                        onSpeakText = onSpeakText,
-                    )
-                }
+    BeMyLensTheme {
+        Surface(modifier = Modifier.fillMaxSize()) {
+            AuthGate {
+                LensScreen(
+                    viewModel = viewModel,
+                    onSpeakText = onSpeakText,
+                )
             }
         }
     }
@@ -180,7 +184,19 @@ private fun LensScreen(
                         .background(Color.Black.copy(alpha = 0.2f)),
                     contentAlignment = Alignment.Center,
                 ) {
-                    CircularProgressIndicator()
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        CircularProgressIndicator()
+                        Text(
+                            text = stringResource(R.string.loading_processing),
+                            modifier = Modifier.semantics {
+                                liveRegion = LiveRegionMode.Polite
+                            },
+                            style = MaterialTheme.typography.titleMedium,
+                        )
+                    }
                 }
             }
         }
@@ -207,6 +223,8 @@ private fun Header() {
                     BuildConfig.BUILD_MARKER,
                     BuildConfig.API_BASE_URL,
                 ),
+                // Visible for sighted debugging, but kept out of the screen-reader flow.
+                modifier = Modifier.clearAndSetSemantics {},
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -242,7 +260,7 @@ private fun EmptyState(
                 onClick = onTakePhoto,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(56.dp),
+                    .heightIn(min = 56.dp),
             ) {
                 Text(stringResource(R.string.action_take_photo))
             }
@@ -250,7 +268,7 @@ private fun EmptyState(
                 onClick = onChoosePhoto,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(56.dp),
+                    .heightIn(min = 56.dp),
             ) {
                 Text(stringResource(R.string.action_choose_photo))
             }
@@ -288,7 +306,7 @@ private fun SelectedImagePanel(
                     enabled = !isLoading,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(56.dp),
+                        .heightIn(min = 56.dp),
                 ) {
                     Text(stringResource(R.string.action_describe_image))
                 }
@@ -297,7 +315,7 @@ private fun SelectedImagePanel(
                     enabled = !isLoading,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(56.dp),
+                        .heightIn(min = 56.dp),
                 ) {
                     Text(stringResource(R.string.action_ask_question))
                 }
@@ -306,7 +324,7 @@ private fun SelectedImagePanel(
                     enabled = !isLoading,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(56.dp),
+                        .heightIn(min = 56.dp),
                 ) {
                     Text(stringResource(R.string.action_read_contents))
                 }
@@ -337,6 +355,7 @@ private fun AnswerCard(
             )
             Text(
                 text = answer,
+                modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
                 style = MaterialTheme.typography.bodyLarge,
             )
             TextButton(onClick = onSpeak, contentPadding = PaddingValues(0.dp)) {
@@ -385,6 +404,14 @@ private fun FollowUpSection(
             enabled = enabled,
             label = { Text(stringResource(R.string.question_label)) },
             placeholder = { Text(stringResource(R.string.question_placeholder)) },
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
+            keyboardActions = KeyboardActions(
+                onSend = {
+                    if (currentQuestion.isNotBlank()) {
+                        onSend()
+                    }
+                },
+            ),
         )
 
         Button(
@@ -463,7 +490,11 @@ private fun MessageCard(
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold,
             )
-            Text(text = body, style = MaterialTheme.typography.bodyMedium)
+            Text(
+                text = body,
+                modifier = Modifier.semantics { liveRegion = LiveRegionMode.Assertive },
+                style = MaterialTheme.typography.bodyMedium,
+            )
         }
     }
 }
