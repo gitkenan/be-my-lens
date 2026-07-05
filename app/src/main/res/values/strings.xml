@@ -18,6 +18,8 @@
     <string name="action_ask_question">طرح سؤال</string>
     <string name="action_read_contents">قراءة المحتوى</string>
 
+    <string name="loading_processing">جار المعالجة، يرجى الانتظار...</string>
+
     <string name="error_something_went_wrong">حدث خطأ</string>
     <string name="answer_latest">آخر إجابة</string>
     <string name="action_read_aloud">القراءة بصوت عال</string>

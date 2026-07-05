@@ -202,20 +202,21 @@ class LensViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     private fun errorMessage(error: Throwable, fallback: String): String {
+        // The full stack trace is already in logcat via Log.e at each call site;
+        // the on-screen message must stay short enough to be read aloud comfortably.
         if (!BuildConfig.DEBUG) {
-            return error.message ?: fallback
+            return fallback
         }
 
         return buildString {
             appendLine(string(R.string.debug_error_build, BuildConfig.BUILD_MARKER))
-            appendLine(
+            append(
                 string(
                     R.string.debug_error_detail,
                     error::class.java.name,
                     error.message ?: fallback,
                 ),
             )
-            append(error.stackTraceToString())
         }
     }
 
