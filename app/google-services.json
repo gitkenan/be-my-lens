@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "552419573842",
+    "project_id": "be-my-lens",
+    "storage_bucket": "be-my-lens.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:552419573842:android:771a2f7ee148220cec1f8b",
+        "android_client_info": {
+          "package_name": "io.bemylens.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "552419573842-quvnlu8rkp2nm2e52p4meg0ls5pjhtkp.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBHBgALNaouvL9boSW5vkDA5dBjC_PSD7I"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "552419573842-quvnlu8rkp2nm2e52p4meg0ls5pjhtkp.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

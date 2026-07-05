@@ -52,6 +52,7 @@ import androidx.core.content.FileProvider
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
+import io.bemylens.app.auth.AuthGate
 import io.bemylens.app.ui.LensViewModel
 import java.io.File
 
@@ -63,10 +64,12 @@ fun BeMyLensApp(
     MaterialTheme {
         CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
             Surface(modifier = Modifier.fillMaxSize()) {
-                LensScreen(
-                    viewModel = viewModel,
-                    onSpeakText = onSpeakText,
-                )
+                AuthGate {
+                    LensScreen(
+                        viewModel = viewModel,
+                        onSpeakText = onSpeakText,
+                    )
+                }
             }
         }
     }

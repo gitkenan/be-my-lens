@@ -3,6 +3,11 @@
     <string name="home_tagline">التقط صورة أو اختر واحدة، ثم صفها أو اقرأ النص أو اطرح سؤالا.</string>
     <string name="debug_build_api">نسخة تصحيح الأخطاء: %1$s\nAPI: %2$s</string>
 
+    <string name="auth_intro">سجل الدخول بحساب Google لاستخدام التطبيق.</string>
+    <string name="action_sign_in_google">تسجيل الدخول بحساب Google</string>
+    <string name="auth_signing_in">جار تسجيل الدخول...</string>
+    <string name="error_sign_in_failed">تعذر تسجيل الدخول. حاول مرة أخرى.</string>
+
     <string name="empty_state_title">ابدأ بصورة</string>
     <string name="empty_state_body">أسرع طريقة هي صورة واحدة، ثم وصف واحد، ثم أسئلة متابعة إذا احتجت إلى تفاصيل أكثر.</string>
     <string name="action_take_photo">التقاط صورة</string>
