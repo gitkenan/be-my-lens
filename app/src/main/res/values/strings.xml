@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">كن عيني</string>
+    <string name="app_name">عين الراشد</string>
     <string name="home_tagline">التقط صورة أو اختر واحدة، ثم صفها أو اقرأ النص أو اطرح سؤالا.</string>
     <string name="debug_build_api">نسخة تصحيح الأخطاء: %1$s\nAPI: %2$s</string>
 

@@ -1,9 +1,9 @@
--- Be My Lens for Jieshuo: translate visible text in the current picture.
+-- Guided Eye (عين الراشد) for Jieshuo: translate visible text in the current picture.
 -- Standalone action. Import or paste this whole file into Jieshuo.
 
 local MODE = "custom_prompt"
 local PROMPT = "ترجم النص الظاهر في هذه الصورة إلى العربية. إذا لم يوجد نص قابل للقراءة، فقل إنه لم يتم العثور على نص قابل للقراءة."
-local ACTION_LABEL = "ترجمة نص الصورة باستخدام كن عيني"
+local ACTION_LABEL = "ترجمة نص الصورة باستخدام عين الراشد"
 local DEBUG = false
 
 require "import"
@@ -21,7 +21,7 @@ local ACTION_DESCRIBE_IMAGE = "io.bemylens.app.action.DESCRIBE_IMAGE"
 local EXTRA_IMAGE_URI = "io.bemylens.app.extra.IMAGE_URI"
 
 local function toast(message)
-  local text = "كن عيني: " .. tostring(message)
+  local text = "عين الراشد: " .. tostring(message)
   print(text)
   pcall(function()
     Toast.makeText(this, text, Toast.LENGTH_SHORT).show()
@@ -32,7 +32,7 @@ local function debug(message)
   if DEBUG then
     toast(message)
   else
-    print("كن عيني: " .. tostring(message))
+    print("عين الراشد: " .. tostring(message))
   end
 end
 

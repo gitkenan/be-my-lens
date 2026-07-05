@@ -1,4 +1,4 @@
--- Be My Lens for Jieshuo: describe the current picture.
+-- Guided Eye (عين الراشد) for Jieshuo: describe the current picture.
 -- Standalone action. Import or paste this whole file into Jieshuo.
 --
 -- Change MODE to "focused_item" if you want the answer to focus on the
@@ -7,10 +7,10 @@
 local MODE = "describe_screen" -- "describe_screen" or "focused_item"
 local DEBUG = false
 
-local ACTION_LABEL = "وصف الصورة باستخدام كن عيني"
+local ACTION_LABEL = "وصف الصورة باستخدام عين الراشد"
 
 if MODE == "focused_item" then
-  ACTION_LABEL = "وصف العنصر المحدد باستخدام كن عيني"
+  ACTION_LABEL = "وصف العنصر المحدد باستخدام عين الراشد"
 end
 
 require "import"
@@ -28,7 +28,7 @@ local ACTION_DESCRIBE_IMAGE = "io.bemylens.app.action.DESCRIBE_IMAGE"
 local EXTRA_IMAGE_URI = "io.bemylens.app.extra.IMAGE_URI"
 
 local function toast(message)
-  local text = "كن عيني: " .. tostring(message)
+  local text = "عين الراشد: " .. tostring(message)
   print(text)
   pcall(function()
     Toast.makeText(this, text, Toast.LENGTH_SHORT).show()
@@ -39,7 +39,7 @@ local function debug(message)
   if DEBUG then
     toast(message)
   else
-    print("كن عيني: " .. tostring(message))
+    print("عين الراشد: " .. tostring(message))
   end
 end
 

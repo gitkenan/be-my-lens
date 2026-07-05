@@ -1,10 +1,10 @@
--- Minimal Be My Lens launch prototype for a future Jieshuo .ppk extension.
+-- Minimal Guided Eye launch prototype for a future Jieshuo .ppk extension.
 -- This is not a polished extension. It is a device-testing script.
 --
 -- Test modes:
 --   no_image        verifies explicit Activity launch only
---   describe_screen captures a screenshot and asks Be My Lens to describe it
---   focused_item    captures a screenshot and asks Be My Lens to focus on the item
+--   describe_screen captures a screenshot and asks Guided Eye to describe it
+--   focused_item    captures a screenshot and asks Guided Eye to focus on the item
 --
 -- Change TEST_MODE before importing/running this script in Jieshuo.
 
@@ -25,7 +25,7 @@ local ACTION_DESCRIBE_IMAGE = "io.bemylens.app.action.DESCRIBE_IMAGE"
 local EXTRA_IMAGE_URI = "io.bemylens.app.extra.IMAGE_URI"
 
 local function notify(message)
-  local text = "Be My Lens: " .. tostring(message)
+  local text = "Guided Eye: " .. tostring(message)
   print(text)
   pcall(function()
     Toast.makeText(this, text, Toast.LENGTH_SHORT).show()

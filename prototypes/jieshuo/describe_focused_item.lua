@@ -1,8 +1,8 @@
--- Be My Lens for Jieshuo: describe the focused item.
+-- Guided Eye for Jieshuo: describe the focused item.
 -- Prototype add-on script for real-device testing.
 
 local MODE = "focused_item"
-local ACTION_LABEL = "Describe focused item with Be My Lens"
+local ACTION_LABEL = "Describe focused item with Guided Eye"
 local DEBUG = false
 
 require "import"
@@ -20,7 +20,7 @@ local ACTION_DESCRIBE_IMAGE = "io.bemylens.app.action.DESCRIBE_IMAGE"
 local EXTRA_IMAGE_URI = "io.bemylens.app.extra.IMAGE_URI"
 
 local function toast(message)
-  local text = "Be My Lens: " .. tostring(message)
+  local text = "Guided Eye: " .. tostring(message)
   print(text)
   pcall(function()
     Toast.makeText(this, text, Toast.LENGTH_SHORT).show()
@@ -31,7 +31,7 @@ local function debug(message)
   if DEBUG then
     toast(message)
   else
-    print("Be My Lens: " .. tostring(message))
+    print("Guided Eye: " .. tostring(message))
   end
 end
 
