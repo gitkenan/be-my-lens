@@ -1,0 +1,15 @@
+services:
+  be-my-lens:
+    build: .
+    restart: unless-stopped
+    env_file:
+      - .env
+    expose:
+      - "8000"
+    networks:
+      - default
+      - proxy
+
+networks:
+  proxy:
+    external: true
