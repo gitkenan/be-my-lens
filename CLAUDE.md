@@ -31,7 +31,7 @@ Device networking:
 
 ## Backend URL wiring
 
-The app reads the backend URL from `BuildConfig.API_BASE_URL`, generated in `app/build.gradle.kts` from (in order): `API_BASE_URL` in `local.properties` → Gradle property → environment variable → fallback `http://10.0.2.2:8000/` (emulator). Hosted backend: `https://be-my-lens.onrender.com/` (Render, cold-starts after idle). `local.properties` is git-ignored and machine-specific.
+The app reads the backend URL from `BuildConfig.API_BASE_URL`, generated in `app/build.gradle.kts` from (in order): `API_BASE_URL` in `local.properties` → Gradle property → environment variable → fallback `http://10.0.2.2:8000/` (emulator). Hosted backend: `https://be-my-lens.planverse.com/`. `local.properties` is git-ignored and machine-specific.
 
 ## API contract (backend ⇄ app)
 
