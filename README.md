@@ -20,10 +20,10 @@ Backend URL configuration is read by Gradle in this order:
 - Environment variable `API_BASE_URL`
 - Fallback: `http://10.0.2.2:8000/`
 
-Use the hosted Render backend for normal device testing:
+Use the hosted backend for normal device testing:
 
 ```properties
-API_BASE_URL=https://be-my-lens.onrender.com/
+API_BASE_URL=https://be-my-lens.planverse.com/
 ```
 
 For a local backend on the Android emulator, use:
@@ -82,7 +82,7 @@ Use a Render Web Service with:
 Current hosted endpoint:
 
 ```text
-https://be-my-lens.onrender.com/
+https://be-my-lens.planverse.com/
 ```
 
 ## API contract
