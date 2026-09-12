@@ -141,7 +141,6 @@ local function launchBeMyLens(uri)
       .setPackage(PACKAGE_NAME)
       .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
       .putExtra("mode", MODE)
-      .putExtra("autoSpeak", true)
 
     intent.setDataAndType(uri, "image/png")
     intent.putExtra(Intent.EXTRA_STREAM, uri)
