@@ -34,6 +34,20 @@
     <string name="chat_role_assistant">المساعد</string>
     <string name="chat_role_user">أنت</string>
 
+    <string name="settings_title">الإعدادات</string>
+    <string name="action_back">رجوع</string>
+    <string name="action_open_settings">فتح الإعدادات</string>
+    <string name="settings_engine_title">محرك النطق</string>
+    <string name="settings_voice_title">الصوت العربي</string>
+    <string name="settings_engine_system_default">افتراضي النظام</string>
+    <string name="settings_voice_system_default">افتراضي المحرك</string>
+    <string name="settings_engine_none">لا يوجد محرك نطق مثبت على هذا الجهاز.</string>
+    <string name="settings_voice_none">لا توجد أصوات عربية متاحة في هذا المحرك.</string>
+    <string name="settings_engine_unavailable">تعذر تشغيل محرك النطق. اختر محركًا آخر أو تحقق من إعدادات تحويل النص إلى كلام على الجهاز.</string>
+    <string name="settings_loading">جار التحميل...</string>
+    <string name="action_test_voice">تجربة الصوت</string>
+    <string name="settings_test_phrase">مرحبا، هذه تجربة للصوت.</string>
+
     <string name="error_failed_describe_image">تعذر وصف الصورة.</string>
     <string name="error_failed_read_contents">تعذرت قراءة محتوى الصورة.</string>
     <string name="error_failed_send_follow_up">تعذر إرسال سؤال المتابعة.</string>

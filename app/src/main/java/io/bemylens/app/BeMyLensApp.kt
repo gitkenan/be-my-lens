@@ -9,11 +9,13 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -22,12 +24,16 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -39,6 +45,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -58,13 +65,15 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import io.bemylens.app.auth.AuthGate
+import io.bemylens.app.tts.TtsSettingsScreen
+import io.bemylens.app.tts.TtsSpeaker
 import io.bemylens.app.ui.BeMyLensTheme
 import io.bemylens.app.ui.LensViewModel
 import java.io.File
 
 @Composable
 fun BeMyLensApp(
-    onSpeakText: (String) -> Unit,
+    speaker: TtsSpeaker,
     viewModel: LensViewModel = viewModel(),
 ) {
     BeMyLensTheme {
@@ -72,7 +81,7 @@ fun BeMyLensApp(
             AuthGate {
                 LensScreen(
                     viewModel = viewModel,
-                    onSpeakText = onSpeakText,
+                    speaker = speaker,
                 )
             }
         }
@@ -82,11 +91,12 @@ fun BeMyLensApp(
 @Composable
 private fun LensScreen(
     viewModel: LensViewModel,
-    onSpeakText: (String) -> Unit,
+    speaker: TtsSpeaker,
 ) {
     val context = LocalContext.current
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     var pendingCameraUri by remember { mutableStateOf<Uri?>(null) }
+    var showSettings by rememberSaveable { mutableStateOf(false) }
 
     val takePhotoLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.TakePicture(),
@@ -121,81 +131,88 @@ private fun LensScreen(
                 .background(MaterialTheme.colorScheme.background)
                 .padding(innerPadding),
         ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .statusBarsPadding()
-                    .verticalScroll(rememberScrollState())
-                    .padding(horizontal = 20.dp, vertical = 16.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp),
-            ) {
-                Header()
-
-                if (state.selectedImageUri == null) {
-                    EmptyState(
-                        onTakePhoto = ::launchCameraCapture,
-                        onChoosePhoto = {
-                            photoPickerLauncher.launch(
-                                PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly),
-                            )
-                        },
-                    )
-                } else {
-                    SelectedImagePanel(
-                        imageUri = state.selectedImageUri!!,
-                        onDescribe = viewModel::describeSelectedImage,
-                        onAskQuestion = viewModel::openChat,
-                        onReadContents = viewModel::readSelectedImage,
-                        isLoading = state.isLoading,
-                    )
-                }
-
-                state.errorMessage?.let { error ->
-                    MessageCard(
-                        title = stringResource(R.string.error_something_went_wrong),
-                        body = error,
-                        containerColor = MaterialTheme.colorScheme.errorContainer,
-                    )
-                }
-
-                state.latestAnswer?.let { answer ->
-                    AnswerCard(
-                        answer = answer,
-                        onSpeak = { onSpeakText(answer) },
-                    )
-                }
-
-                if (state.selectedImageUri != null && state.isChatOpen) {
-                    FollowUpSection(
-                        enabled = !state.isLoading,
-                        currentQuestion = state.followUpQuestion,
-                        messages = state.messages,
-                        onQuestionChange = viewModel::updateFollowUpQuestion,
-                        onSend = { viewModel.sendFollowUp() },
-                        onShortcut = viewModel::sendShortcut,
-                    )
-                }
-            }
-
-            if (state.isLoading) {
-                Box(
+            if (showSettings) {
+                TtsSettingsScreen(
+                    speaker = speaker,
+                    onBack = { showSettings = false },
+                )
+            } else {
+                Column(
                     modifier = Modifier
                         .fillMaxSize()
-                        .background(Color.Black.copy(alpha = 0.2f)),
-                    contentAlignment = Alignment.Center,
+                        .statusBarsPadding()
+                        .verticalScroll(rememberScrollState())
+                        .padding(horizontal = 20.dp, vertical = 16.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
                 ) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(12.dp),
-                    ) {
-                        CircularProgressIndicator()
-                        Text(
-                            text = stringResource(R.string.loading_processing),
-                            modifier = Modifier.semantics {
-                                liveRegion = LiveRegionMode.Polite
+                    Header(onOpenSettings = { showSettings = true })
+
+                    if (state.selectedImageUri == null) {
+                        EmptyState(
+                            onTakePhoto = ::launchCameraCapture,
+                            onChoosePhoto = {
+                                photoPickerLauncher.launch(
+                                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly),
+                                )
                             },
-                            style = MaterialTheme.typography.titleMedium,
                         )
+                    } else {
+                        SelectedImagePanel(
+                            imageUri = state.selectedImageUri!!,
+                            onDescribe = viewModel::describeSelectedImage,
+                            onAskQuestion = viewModel::openChat,
+                            onReadContents = viewModel::readSelectedImage,
+                            isLoading = state.isLoading,
+                        )
+                    }
+
+                    state.errorMessage?.let { error ->
+                        MessageCard(
+                            title = stringResource(R.string.error_something_went_wrong),
+                            body = error,
+                            containerColor = MaterialTheme.colorScheme.errorContainer,
+                        )
+                    }
+
+                    state.latestAnswer?.let { answer ->
+                        AnswerCard(
+                            answer = answer,
+                            onSpeak = { speaker.speak(answer) },
+                        )
+                    }
+
+                    if (state.selectedImageUri != null && state.isChatOpen) {
+                        FollowUpSection(
+                            enabled = !state.isLoading,
+                            currentQuestion = state.followUpQuestion,
+                            messages = state.messages,
+                            onQuestionChange = viewModel::updateFollowUpQuestion,
+                            onSend = { viewModel.sendFollowUp() },
+                            onShortcut = viewModel::sendShortcut,
+                        )
+                    }
+                }
+
+                if (state.isLoading) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(Color.Black.copy(alpha = 0.2f)),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(12.dp),
+                        ) {
+                            CircularProgressIndicator()
+                            Text(
+                                text = stringResource(R.string.loading_processing),
+                                modifier = Modifier.semantics {
+                                    liveRegion = LiveRegionMode.Polite
+                                },
+                                style = MaterialTheme.typography.titleMedium,
+                            )
+                        }
                     }
                 }
             }
@@ -204,29 +221,47 @@ private fun LensScreen(
 }
 
 @Composable
-private fun Header() {
-    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Text(
-            text = stringResource(R.string.app_name),
-            style = MaterialTheme.typography.headlineMedium,
-            fontWeight = FontWeight.Bold,
-        )
-        Text(
-            text = stringResource(R.string.home_tagline),
-            style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        if (BuildConfig.DEBUG) {
+private fun Header(onOpenSettings: () -> Unit) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
             Text(
-                text = stringResource(
-                    R.string.debug_build_api,
-                    BuildConfig.BUILD_MARKER,
-                    BuildConfig.API_BASE_URL,
-                ),
-                // Visible for sighted debugging, but kept out of the screen-reader flow.
-                modifier = Modifier.clearAndSetSemantics {},
-                style = MaterialTheme.typography.labelMedium,
+                text = stringResource(R.string.app_name),
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.Bold,
+            )
+            Text(
+                text = stringResource(R.string.home_tagline),
+                style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            if (BuildConfig.DEBUG) {
+                Text(
+                    text = stringResource(
+                        R.string.debug_build_api,
+                        BuildConfig.BUILD_MARKER,
+                        BuildConfig.API_BASE_URL,
+                    ),
+                    // Visible for sighted debugging, but kept out of the screen-reader flow.
+                    modifier = Modifier.clearAndSetSemantics {},
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+        IconButton(
+            onClick = onOpenSettings,
+            modifier = Modifier.size(56.dp),
+        ) {
+            Icon(
+                imageVector = Icons.Filled.Settings,
+                contentDescription = stringResource(R.string.action_open_settings),
             )
         }
     }

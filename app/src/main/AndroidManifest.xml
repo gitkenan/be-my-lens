@@ -4,6 +4,13 @@
 
     <uses-permission android:name="android.permission.INTERNET" />
 
+    <!-- Without this, package visibility on Android 11+ hides every installed TTS engine. -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.TTS_SERVICE" />
+        </intent>
+    </queries>
+
     <!-- Cleartext HTTP (local dev backend) is enabled only in the debug manifest overlay. -->
     <application
         android:allowBackup="true"
