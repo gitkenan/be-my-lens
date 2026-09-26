@@ -3,7 +3,6 @@ package io.bemylens.app
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
-import android.speech.tts.TextToSpeech
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -46,6 +45,7 @@ import io.bemylens.app.integration.ExternalImageCommandError
 import io.bemylens.app.integration.ExternalImageCommandException
 import io.bemylens.app.integration.ExternalImageIntentParser
 import io.bemylens.app.integration.ExternalIntegrationContract.Modes
+import io.bemylens.app.tts.TtsSpeaker
 import io.bemylens.app.ui.BeMyLensTheme
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -54,13 +54,10 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.IOException
-import java.util.Locale
 
 class JieshuoEntryActivity : ComponentActivity() {
     private val repository by lazy { LensRepository(applicationContext) }
-    private var speaker: TextToSpeech? = null
-    private var ttsReady = false
-    private var pendingSpeech: String? = null
+    private val speaker by lazy { TtsSpeaker.getInstance(this) }
     private var processingJob: Job? = null
     private var latestRequestId = 0L
     private var screenState by mutableStateOf<JieshuoScreenState>(JieshuoScreenState.Processing)
@@ -69,21 +66,10 @@ class JieshuoEntryActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
-        speaker = TextToSpeech(this) { status ->
-            if (status == TextToSpeech.SUCCESS) {
-                ttsReady = true
-                speaker?.language = Locale("ar")
-                pendingSpeech?.let { text ->
-                    pendingSpeech = null
-                    speak(text)
-                }
-            }
-        }
-
         setContent {
             JieshuoEntryScreen(
                 state = screenState,
-                onSpeak = ::speak,
+                onSpeak = speaker::speak,
                 onClose = ::finish,
             )
         }
@@ -99,15 +85,14 @@ class JieshuoEntryActivity : ComponentActivity() {
 
     override fun onDestroy() {
         processingJob?.cancel()
-        speaker?.stop()
-        speaker?.shutdown()
-        speaker = null
+        speaker.stop()
         super.onDestroy()
     }
 
     private fun handleIntent(intent: Intent) {
         processingJob?.cancel()
-        pendingSpeech = null
+        // Drop anything the previous request queued or was still saying.
+        speaker.stop()
         val requestId = ++latestRequestId
         screenState = JieshuoScreenState.Processing
 
@@ -145,7 +130,7 @@ class JieshuoEntryActivity : ComponentActivity() {
 
             screenState = result
             if (result is JieshuoScreenState.Result && result.autoSpeak) {
-                speak(result.answer)
+                speaker.speak(result.answer)
             }
         }
     }
@@ -250,15 +235,6 @@ class JieshuoEntryActivity : ComponentActivity() {
             }
             ExternalImageCommandError.NO_IMAGE_RECEIVED -> getString(R.string.error_no_image_received)
         }
-    }
-
-    private fun speak(text: String) {
-        if (!ttsReady) {
-            pendingSpeech = text
-            return
-        }
-
-        speaker?.speak(text, TextToSpeech.QUEUE_FLUSH, null, "be-my-lens-jieshuo")
     }
 }
 
