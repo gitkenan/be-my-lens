@@ -1,4 +1,5 @@
 import base64
+import logging
 import os
 import uuid
 from dataclasses import dataclass, field
@@ -45,6 +46,20 @@ class FollowUpBody(BaseModel):
     sessionId: str
     question: str
 
+
+class _AccessLogFilter(logging.Filter):
+    """Keep Uvicorn access-log lines only for this app's own endpoints."""
+
+    ALLOWED_PATHS = {"/health", "/describe", "/read", "/chat", "/followup"}
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        args = record.args
+        if not isinstance(args, tuple) or len(args) < 3:
+            return True
+        return str(args[2]).split("?")[0].rstrip("/") in self.ALLOWED_PATHS
+
+
+logging.getLogger("uvicorn.access").addFilter(_AccessLogFilter())
 
 app = FastAPI(title="Be My Lens API")
 app.add_middleware(

@@ -25,6 +25,9 @@ Add unit tests under `app/src/test/`, instrumentation tests under `app/src/andro
 The Android backend URL is generated into `BuildConfig.API_BASE_URL`. Gradle reads `API_BASE_URL` from `local.properties`, then Gradle properties, then the environment, and finally defaults to `http://10.0.2.2:8000/`. The current hosted endpoint is `https://be-my-lens.planverse.com/`.
 
 For Android Studio on Windows, the working copy is `C:\Users\Keenan\be-my-lens`. The WSL repo at `/home/keenan/be-my-lens` has `core.hooksPath` configured to `.githooks`, so commits run `.githooks/post-commit` and sync to Windows. A fresh clone needs `git config core.hooksPath .githooks` to enable that hook locally.
+## Docs
+
+We have a fairly convoluted deployment setup. For more information, see docs/deployment.md
 
 ## Coding Style & Naming Conventions
 
