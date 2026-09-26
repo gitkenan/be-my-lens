@@ -21,7 +21,6 @@ local EXTRA_IMAGE_URI = "io.bemylens.app.extra.IMAGE_URI"
 
 local function toast(message)
   local text = "عين الراشد: " .. tostring(message)
-  print(text)
   pcall(function()
     Toast.makeText(this, text, Toast.LENGTH_SHORT).show()
   end)
@@ -30,8 +29,6 @@ end
 local function debug(message)
   if DEBUG then
     toast(message)
-  else
-    print("عين الراشد: " .. tostring(message))
   end
 end
 
