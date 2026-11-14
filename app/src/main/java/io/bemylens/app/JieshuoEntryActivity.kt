@@ -45,6 +45,7 @@ import io.bemylens.app.integration.ExternalImageCommand
 import io.bemylens.app.integration.ExternalImageCommandError
 import io.bemylens.app.integration.ExternalImageCommandException
 import io.bemylens.app.integration.ExternalImageIntentParser
+import io.bemylens.app.integration.ExternalIntegrationContract.Extras
 import io.bemylens.app.integration.ExternalIntegrationContract.Modes
 import io.bemylens.app.tts.TtsSpeaker
 import io.bemylens.app.ui.BeMyLensTheme
@@ -61,7 +62,9 @@ class JieshuoEntryActivity : ComponentActivity() {
     private val speaker by lazy { TtsSpeaker.getInstance(this) }
     private var processingJob: Job? = null
     private var latestRequestId = 0L
-    private var screenState by mutableStateOf<JieshuoScreenState>(JieshuoScreenState.Processing)
+    private var screenState by mutableStateOf<JieshuoScreenState>(
+        JieshuoScreenState.Processing(isTranslation = false),
+    )
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -95,19 +98,22 @@ class JieshuoEntryActivity : ComponentActivity() {
         // Drop anything the previous request queued or was still saying.
         speaker.stop()
         val requestId = ++latestRequestId
-        screenState = JieshuoScreenState.Processing
+        val isTranslation = intent.getStringExtra(Extras.MODE)?.trim() == Modes.TRANSLATE_TEXT
+        screenState = JieshuoScreenState.Processing(isTranslation = isTranslation)
 
         processingJob = lifecycleScope.launch {
             val result = runCatching {
                 val command = ExternalImageIntentParser.parse(intent)
-                val imageUri = command.imageUri
-                    ?: throw ExternalImageCommandException(
-                        error = ExternalImageCommandError.NO_IMAGE_RECEIVED,
-                    )
-                validateImageType(intent, imageUri)
 
-                val cachedImageUri = withContext(Dispatchers.IO) {
-                    copyImageToCache(imageUri)
+                val cachedImageUri = if (command.mode == Modes.TRANSLATE_TEXT) {
+                    null
+                } else {
+                    command.imageUri?.let { imageUri ->
+                        validateImageType(intent, imageUri)
+                        withContext(Dispatchers.IO) {
+                            copyImageToCache(imageUri)
+                        }
+                    }
                 }
 
                 val answer = processCommand(command, cachedImageUri)
@@ -122,7 +128,7 @@ class JieshuoEntryActivity : ComponentActivity() {
                 if (error is CancellationException) {
                     return@launch
                 }
-                error.toJieshuoErrorState()
+                error.toJieshuoErrorState(isTranslation)
             }
 
             if (requestId != latestRequestId) {
@@ -143,30 +149,38 @@ class JieshuoEntryActivity : ComponentActivity() {
         }
     }
 
-    private suspend fun processCommand(command: ExternalImageCommand, cachedImageUri: Uri): String {
+    private suspend fun processCommand(command: ExternalImageCommand, cachedImageUri: Uri?): String {
         return when (command.mode) {
             Modes.DESCRIBE_SCREEN -> {
                 command.prompt?.let { prompt ->
-                    repository.askQuestion(cachedImageUri, prompt).answer
-                } ?: repository.describeImage(cachedImageUri).description
+                    repository.askQuestion(requireImage(cachedImageUri), prompt).answer
+                } ?: repository.describeImage(requireImage(cachedImageUri)).description
             }
             Modes.FOCUSED_ITEM -> {
                 repository.askQuestion(
-                    imageUri = cachedImageUri,
+                    imageUri = requireImage(cachedImageUri),
                     question = command.prompt ?: getString(R.string.prompt_focused_item_default),
                 ).answer
             }
             Modes.READ_TEXT -> {
                 command.prompt?.let { prompt ->
-                    repository.askQuestion(cachedImageUri, prompt).answer
-                } ?: repository.readContents(cachedImageUri).contents
+                    repository.askQuestion(requireImage(cachedImageUri), prompt).answer
+                } ?: repository.readContents(requireImage(cachedImageUri)).contents
             }
             Modes.CUSTOM_PROMPT -> {
                 repository.askQuestion(
-                    imageUri = cachedImageUri,
+                    imageUri = requireImage(cachedImageUri),
                     question = command.prompt
                         ?: throw ExternalImageCommandException(
                             error = ExternalImageCommandError.CUSTOM_PROMPT_REQUIRED,
+                        ),
+                ).answer
+            }
+            Modes.TRANSLATE_TEXT -> {
+                repository.translateText(
+                    text = command.text
+                        ?: throw ExternalImageCommandException(
+                            error = ExternalImageCommandError.NO_TEXT_RECEIVED,
                         ),
                 ).answer
             }
@@ -175,6 +189,13 @@ class JieshuoEntryActivity : ComponentActivity() {
                 value = command.mode,
             )
         }
+    }
+
+    private fun requireImage(cachedImageUri: Uri?): Uri {
+        return cachedImageUri
+            ?: throw ExternalImageCommandException(
+                error = ExternalImageCommandError.NO_IMAGE_RECEIVED,
+            )
     }
 
     private fun copyImageToCache(sourceUri: Uri): Uri {
@@ -206,7 +227,7 @@ class JieshuoEntryActivity : ComponentActivity() {
         return Uri.fromFile(imageFile)
     }
 
-    private fun Throwable.toJieshuoErrorState(): JieshuoScreenState.Error {
+    private fun Throwable.toJieshuoErrorState(isTranslation: Boolean): JieshuoScreenState.Error {
         val message = when (this) {
             is JieshuoInputException -> message ?: getString(R.string.error_unable_use_received_image)
             is ExternalImageCommandException -> localizedExternalCommandMessage()
@@ -221,6 +242,7 @@ class JieshuoEntryActivity : ComponentActivity() {
         return JieshuoScreenState.Error(
             message = message,
             detail = technicalDetail.takeIf { BuildConfig.DEBUG },
+            isTranslation = isTranslation,
         )
     }
 
@@ -235,6 +257,7 @@ class JieshuoEntryActivity : ComponentActivity() {
                 getString(R.string.error_custom_prompt_required)
             }
             ExternalImageCommandError.NO_IMAGE_RECEIVED -> getString(R.string.error_no_image_received)
+            ExternalImageCommandError.NO_TEXT_RECEIVED -> getString(R.string.error_no_text_received)
         }
     }
 }
@@ -245,7 +268,9 @@ private class JieshuoInputException(
 ) : Exception(message, cause)
 
 private sealed interface JieshuoScreenState {
-    data object Processing : JieshuoScreenState
+    data class Processing(
+        val isTranslation: Boolean,
+    ) : JieshuoScreenState
 
     data class Result(
         val answer: String,
@@ -257,6 +282,7 @@ private sealed interface JieshuoScreenState {
     data class Error(
         val message: String,
         val detail: String?,
+        val isTranslation: Boolean,
     ) : JieshuoScreenState
 }
 
@@ -276,7 +302,7 @@ private fun JieshuoEntryScreen(
                     .padding(20.dp),
             ) {
                 when (state) {
-                    JieshuoScreenState.Processing -> ProcessingCard()
+                    is JieshuoScreenState.Processing -> ProcessingCard(isTranslation = state.isTranslation)
                     is JieshuoScreenState.Result -> ResultCard(
                         state = state,
                         onSpeak = onSpeak,
@@ -293,7 +319,7 @@ private fun JieshuoEntryScreen(
 }
 
 @Composable
-private fun ProcessingCard() {
+private fun ProcessingCard(isTranslation: Boolean) {
     Column(
         modifier = Modifier.fillMaxSize(),
         verticalArrangement = Arrangement.Center,
@@ -301,7 +327,10 @@ private fun ProcessingCard() {
     ) {
         CircularProgressIndicator()
         Text(
-            text = stringResource(R.string.jieshuo_processing),
+            text = stringResource(
+                if (isTranslation) R.string.jieshuo_processing_translation
+                else R.string.jieshuo_processing,
+            ),
             modifier = Modifier
                 .padding(top = 18.dp)
                 .semantics { liveRegion = LiveRegionMode.Polite },
@@ -337,10 +366,10 @@ private fun ResultCard(
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 Text(
-                    text = if (state.prompt == null) {
-                        stringResource(R.string.result_description)
-                    } else {
-                        stringResource(R.string.result_answer)
+                    text = when {
+                        state.mode == Modes.TRANSLATE_TEXT -> stringResource(R.string.result_translation)
+                        state.prompt == null -> stringResource(R.string.result_description)
+                        else -> stringResource(R.string.result_answer)
                     },
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold,
@@ -389,7 +418,10 @@ private fun ErrorCard(
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
                 Text(
-                    text = stringResource(R.string.error_unable_describe_image),
+                    text = stringResource(
+                        if (state.isTranslation) R.string.error_unable_translate_text
+                        else R.string.error_unable_describe_image,
+                    ),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold,
                 )

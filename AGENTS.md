@@ -18,6 +18,8 @@ Add unit tests under `app/src/test/`, instrumentation tests under `app/src/andro
 - `source server/.venv/bin/activate`: activate it from the repo root.
 - `cd server && pip install -r requirements.txt`: install backend dependencies.
 - `cd server && uvicorn app:app --reload`: run the backend at `http://127.0.0.1:8000`.
+- `cd server && .venv/bin/pip install -r requirements.txt pytest`: install backend dependencies plus the test runner.
+- `cd server && .venv/bin/python -m pytest tests -q`: run the backend FastAPI tests.
 - `curl http://127.0.0.1:8000/health`: verify the local backend is reachable.
 - `adb reverse tcp:8000 tcp:8000`: let a USB-connected physical Android device reach a local backend through `http://127.0.0.1:8000/`.
 - `scripts/sync-to-windows.sh`: manually sync the WSL checkout to the Windows Android Studio copy.

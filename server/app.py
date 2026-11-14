@@ -26,6 +26,7 @@ if not PROMPTS_DIR.exists():
 DESCRIBE_IMAGE_PROMPT = (PROMPTS_DIR / "describe_image.txt").read_text(encoding="utf-8").strip()
 READ_CONTENTS_PROMPT = (PROMPTS_DIR / "read_contents.txt").read_text(encoding="utf-8").strip()
 ASK_QUESTION_PROMPT = (PROMPTS_DIR / "ask_question.txt").read_text(encoding="utf-8").strip()
+TRANSLATE_TEXT_PROMPT = (PROMPTS_DIR / "translate_text.txt").read_text(encoding="utf-8").strip()
 DESCRIBE_IMAGE_QUESTION = "صف هذه الصورة لمستخدم كفيف أو ضعيف البصر."
 READ_CONTENTS_QUESTION = "اقرأ النص الموجود في الصورة."
 
@@ -47,10 +48,14 @@ class FollowUpBody(BaseModel):
     question: str
 
 
+class TranslateTextBody(BaseModel):
+    text: str
+
+
 class _AccessLogFilter(logging.Filter):
     """Keep Uvicorn access-log lines only for this app's own endpoints."""
 
-    ALLOWED_PATHS = {"/health", "/describe", "/read", "/chat", "/followup"}
+    ALLOWED_PATHS = {"/health", "/describe", "/read", "/chat", "/followup", "/translate_text"}
 
     def filter(self, record: logging.LogRecord) -> bool:
         args = record.args
@@ -176,6 +181,21 @@ async def followup(body: FollowUpBody) -> dict[str, str]:
     return {"answer": answer}
 
 
+@app.post("/translate_text")
+async def translate_text(body: TranslateTextBody) -> dict[str, str]:
+    ensure_api_key()
+
+    text = body.text.strip()
+    if not text:
+        raise HTTPException(status_code=400, detail="يجب ألا يكون النص فارغا.")
+
+    answer = await ask_text_model(
+        developer_prompt=TRANSLATE_TEXT_PROMPT,
+        user_text=text,
+    )
+    return {"answer": answer}
+
+
 def ensure_api_key() -> None:
     if not OPENAI_API_KEY:
         raise HTTPException(status_code=500, detail="متغير OPENAI_API_KEY غير مضبوط.")
@@ -218,6 +238,48 @@ async def ask_model(image_data_url: str, developer_prompt: str, user_question: s
                         "image_url": image_data_url,
                         "detail": "high",
                     },
+                ],
+            },
+        ],
+    }
+
+    headers = {
+        "Authorization": f"Bearer {OPENAI_API_KEY}",
+        "Content-Type": "application/json",
+    }
+
+    async with httpx.AsyncClient(timeout=90.0) as client:
+        response = await client.post(OPENAI_RESPONSES_API_URL, headers=headers, json=payload)
+        if response.status_code >= 400:
+            raise HTTPException(status_code=502, detail=response.text)
+
+    data = response.json()
+    text = extract_output_text(data)
+    if not text:
+        raise HTTPException(status_code=502, detail="لم يرجع النموذج أي نص.")
+    return text.strip()
+
+
+async def ask_text_model(developer_prompt: str, user_text: str) -> str:
+    payload = {
+        "model": OPENAI_MODEL,
+        "input": [
+            {
+                "role": "developer",
+                "content": [
+                    {
+                        "type": "input_text",
+                        "text": developer_prompt,
+                    }
+                ],
+            },
+            {
+                "role": "user",
+                "content": [
+                    {
+                        "type": "input_text",
+                        "text": user_text,
+                    }
                 ],
             },
         ],

@@ -62,6 +62,14 @@ class LensRepository(
         )
     }
 
+    suspend fun translateText(text: String): TranslateTextResponse {
+        return api.translateText(
+            TranslateTextRequest(
+                text = text,
+            ),
+        )
+    }
+
     private fun imagePartFor(imageUri: Uri): MultipartBody.Part {
         val imageBytes = readCompressedJpeg(context, imageUri)
         val requestBody = imageBytes.toRequestBody("image/jpeg".toMediaType())

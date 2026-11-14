@@ -144,4 +144,31 @@ class LensJsonTest {
             response,
         )
     }
+
+    @Test
+    fun convertsTranslateTextResponseJson() {
+        @Suppress("UNCHECKED_CAST")
+        val converter = LensJson.converterFactory().responseBodyConverter(
+            TranslateTextResponse::class.java,
+            emptyArray(),
+            Retrofit.Builder()
+                .baseUrl("http://localhost/")
+                .build(),
+        ) as Converter<ResponseBody, TranslateTextResponse>
+
+        val response = converter.convert(
+            """
+            {
+              "answer": "مرحبا"
+            }
+            """.trimIndent().toResponseBody("application/json".toMediaType()),
+        )
+
+        assertEquals(
+            TranslateTextResponse(
+                answer = "مرحبا",
+            ),
+            response,
+        )
+    }
 }

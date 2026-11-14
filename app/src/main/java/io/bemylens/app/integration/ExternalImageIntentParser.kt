@@ -9,6 +9,7 @@ import io.bemylens.app.integration.ExternalIntegrationContract.Modes
 data class ExternalImageCommand(
     val mode: String,
     val imageUri: Uri?,
+    val text: String?,
     val prompt: String?,
     val autoSpeak: Boolean,
 )
@@ -17,6 +18,7 @@ enum class ExternalImageCommandError {
     UNSUPPORTED_MODE,
     CUSTOM_PROMPT_REQUIRED,
     NO_IMAGE_RECEIVED,
+    NO_TEXT_RECEIVED,
 }
 
 class ExternalImageCommandException(
@@ -52,14 +54,27 @@ object ExternalImageIntentParser {
             )
         }
 
+        val text = source.getStringExtra(Extras.TEXT)
+            ?.trim()
+            ?.takeIf { it.isNotBlank() }
+
+        if (mode == Modes.TRANSLATE_TEXT && text == null) {
+            throw ExternalImageCommandException(
+                error = ExternalImageCommandError.NO_TEXT_RECEIVED,
+            )
+        }
+
         val imageUri = source.receivedImageUri()
-            ?: throw ExternalImageCommandException(
+        if (imageUri == null && mode != Modes.TRANSLATE_TEXT) {
+            throw ExternalImageCommandException(
                 error = ExternalImageCommandError.NO_IMAGE_RECEIVED,
             )
+        }
 
         return ExternalImageCommand(
             mode = mode,
             imageUri = imageUri,
+            text = text,
             prompt = prompt,
             autoSpeak = source.getBooleanExtra(Extras.AUTO_SPEAK, true),
         )

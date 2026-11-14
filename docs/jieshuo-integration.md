@@ -24,9 +24,10 @@ image/*
 
 | Key | Type | Required | Notes |
 | --- | --- | --- | --- |
-| `android.intent.extra.STREAM` | `Uri` | Yes, unless another image URI source is used | Standard Android share image URI. |
-| `io.bemylens.app.extra.IMAGE_URI` | `Uri` or URI string | Yes, unless `EXTRA_STREAM` or `Intent.data` is used | Custom direct-launch image URI. |
-| `Intent.data` | `Uri` | Yes, unless an image extra is used | Supports `content://` and `file://` schemes. |
+| `android.intent.extra.STREAM` | `Uri` | Yes for image modes | Standard Android share image URI. |
+| `io.bemylens.app.extra.IMAGE_URI` | `Uri` or URI string | Yes for image modes | Custom direct-launch image URI. |
+| `Intent.data` | `Uri` | Yes for image modes | Supports `content://` and `file://` schemes. |
+| `io.bemylens.app.extra.TEXT` | `String` | Yes for `translate_text` | Raw text to translate, taken from the caller's selected/focused text. |
 | `mode` | `String` | No | Defaults to `describe_screen`. |
 | `prompt` | `String` | Required only for `custom_prompt` | Optional mode-specific instruction. |
 | `autoSpeak` | `Boolean` | No | Defaults to `true`. |
@@ -37,7 +38,7 @@ Image URI lookup order:
 2. `io.bemylens.app.extra.IMAGE_URI`
 3. `Intent.data`
 
-The receiving Activity copies the image into app cache before processing, so callers only need to grant temporary read permission for launch.
+The receiving Activity copies the image into app cache before processing, so callers only need to grant temporary read permission for launch. `translate_text` does not need an image at all.
 
 ## Supported Modes
 
@@ -47,8 +48,9 @@ The receiving Activity copies the image into app cache before processing, so cal
 | `focused_item` | Uses a focused-item prompt: describe only the focused item/control and ignore unrelated background content unless necessary. | Uses the provided prompt. |
 | `read_text` | Uses the existing read/OCR-style endpoint. | Uses the image chat endpoint with the provided prompt. |
 | `custom_prompt` | Invalid. Shows a clear error. | Uses the image chat endpoint with the provided prompt. |
+| `translate_text` | Translates the text in `io.bemylens.app.extra.TEXT` through the text-only backend endpoint. No image is required or used. | `prompt` is ignored. |
 
-Unsupported mode values are rejected with a validation error.
+Unsupported mode values are rejected with a validation error. `translate_text` without a usable `TEXT` extra is rejected with a no-text-received error.
 
 ## ADB Examples
 
@@ -130,15 +132,25 @@ adb shell am start --grant-read-uri-permission \
   -p io.bemylens.app
 ```
 
+Translate selected text mode, no image URI needed:
+
+```bash
+adb shell am start \
+  -a io.bemylens.app.action.DESCRIBE_IMAGE \
+  --es mode translate_text \
+  --es io.bemylens.app.extra.TEXT "Exit 12A is 300 meters ahead" \
+  -p io.bemylens.app
+```
+
 ## Expected Jieshuo `.ppk` Behavior
 
-A future Jieshuo extension should:
+A Jieshuo extension should:
 
-1. Capture or obtain a screenshot/cropped image URI.
+1. Capture or obtain a screenshot/cropped image URI for image modes, or read the selected/focused text for `translate_text`.
 2. Launch `io.bemylens.app.action.DESCRIBE_IMAGE`.
-3. Pass the image through `Intent.EXTRA_STREAM`, `io.bemylens.app.extra.IMAGE_URI`, or `Intent.data`.
-4. Add `FLAG_GRANT_READ_URI_PERMISSION`.
-5. Set `mode` to one of `describe_screen`, `focused_item`, `read_text`, or `custom_prompt`.
+3. Pass the image through `Intent.EXTRA_STREAM`, `io.bemylens.app.extra.IMAGE_URI`, or `Intent.data` for image modes, or the text through `io.bemylens.app.extra.TEXT` for `translate_text`.
+4. Add `FLAG_GRANT_READ_URI_PERMISSION` when passing an image URI.
+5. Set `mode` to one of `describe_screen`, `focused_item`, `read_text`, `custom_prompt`, or `translate_text`.
 6. Optionally set `prompt` and `autoSpeak`.
 
 For a first Jieshuo MVP:
@@ -159,9 +171,19 @@ autoSpeak = true
 image = cropped focused-item screenshot URI, or full screenshot if cropping is unavailable
 ```
 
+For selected text:
+
+```text
+action = io.bemylens.app.action.DESCRIBE_IMAGE
+mode = translate_text
+autoSpeak = true
+text = focused node text or content description
+```
+
 ## Current Limitations
 
-- The contract requires an image URI. Be My Lens does not currently receive raw bitmap bytes, base64 image payloads, or text-only accessibility node data.
+- Image modes require an image URI. `translate_text` requires the `io.bemylens.app.extra.TEXT` extra instead and does not accept raw bitmap bytes or base64 image payloads.
+- `translate_text` translates into the backend's configured locale (`PROMPT_LOCALE`, Arabic by default) and does not let the caller choose a target language yet.
 - Processing runs in the exported Activity, not a foreground service.
 - There is no Android accessibility service in Be My Lens.
 - The backend keeps image sessions in memory only.
@@ -172,4 +194,4 @@ image = cropped focused-item screenshot URI, or full screenshot if cropping is u
 
 Android apps cannot generally inspect arbitrary other app screens, view hierarchies, or private UI internals. A screen reader or automation layer may have more context, but passing that directly would require a larger, Jieshuo-specific contract and careful privacy handling.
 
-For the MVP, a screenshot/image URI is the most stable boundary: Jieshuo owns capture and focus context, Be My Lens owns image understanding, speech, and backend communication.
+For the MVP, a screenshot/image URI is the most stable boundary for image understanding, and the selected-text extra is the stable boundary for text translation: Jieshuo owns capture and focus context, Be My Lens owns image understanding, text translation, speech, and backend communication.

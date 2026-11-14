@@ -5,6 +5,7 @@ object ExternalIntegrationContract {
 
     object Extras {
         const val IMAGE_URI = "io.bemylens.app.extra.IMAGE_URI"
+        const val TEXT = "io.bemylens.app.extra.TEXT"
         const val MODE = "mode"
         const val PROMPT = "prompt"
         const val AUTO_SPEAK = "autoSpeak"
@@ -15,12 +16,14 @@ object ExternalIntegrationContract {
         const val FOCUSED_ITEM = "focused_item"
         const val READ_TEXT = "read_text"
         const val CUSTOM_PROMPT = "custom_prompt"
+        const val TRANSLATE_TEXT = "translate_text"
 
         val SUPPORTED = setOf(
             DESCRIBE_SCREEN,
             FOCUSED_ITEM,
             READ_TEXT,
             CUSTOM_PROMPT,
+            TRANSLATE_TEXT,
         )
     }
 

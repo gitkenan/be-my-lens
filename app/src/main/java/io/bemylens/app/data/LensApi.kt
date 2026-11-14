@@ -29,6 +29,14 @@ data class FollowUpResponse(
     val answer: String,
 )
 
+data class TranslateTextRequest(
+    val text: String,
+)
+
+data class TranslateTextResponse(
+    val answer: String,
+)
+
 interface LensApi {
     @Multipart
     @POST("describe")
@@ -53,4 +61,9 @@ interface LensApi {
     suspend fun followUp(
         @Body request: FollowUpRequest,
     ): FollowUpResponse
+
+    @POST("translate_text")
+    suspend fun translateText(
+        @Body request: TranslateTextRequest,
+    ): TranslateTextResponse
 }

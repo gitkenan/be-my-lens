@@ -57,11 +57,15 @@
     <string name="prompt_focused_item_default">صف العنصر أو عنصر التحكم الذي عليه التركيز فقط. تجاهل محتوى الخلفية غير المرتبط إلا إذا كان ضروريا.</string>
 
     <string name="jieshuo_processing">جار وصف الصورة...</string>
+    <string name="jieshuo_processing_translation">جار الترجمة...</string>
     <string name="result_description">الوصف</string>
     <string name="result_answer">الإجابة</string>
+    <string name="result_translation">الترجمة</string>
     <string name="action_close">إغلاق</string>
     <string name="error_unable_describe_image">تعذر وصف الصورة</string>
+    <string name="error_unable_translate_text">تعذر ترجمة النص</string>
     <string name="error_no_image_received">لم يتم استلام صورة.</string>
+    <string name="error_no_text_received">لم يتم استلام نص.</string>
     <string name="error_unsupported_content_type">نوع المحتوى غير مدعوم: %1$s</string>
     <string name="error_custom_prompt_required">يتطلب وضع custom_prompt تمرير prompt إضافي.</string>
     <string name="error_unsupported_mode_with_supported">الوضع غير مدعوم: %1$s. الأوضاع المدعومة: %2$s</string>

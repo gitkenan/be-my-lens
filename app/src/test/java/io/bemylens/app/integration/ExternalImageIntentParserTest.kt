@@ -4,6 +4,7 @@ import android.net.FakeUri
 import android.net.Uri
 import io.bemylens.app.integration.ExternalImageCommandError.CUSTOM_PROMPT_REQUIRED
 import io.bemylens.app.integration.ExternalImageCommandError.NO_IMAGE_RECEIVED
+import io.bemylens.app.integration.ExternalImageCommandError.NO_TEXT_RECEIVED
 import io.bemylens.app.integration.ExternalImageCommandError.UNSUPPORTED_MODE
 import io.bemylens.app.integration.ExternalIntegrationContract.Extras
 import io.bemylens.app.integration.ExternalIntegrationContract.Modes
@@ -104,6 +105,51 @@ class ExternalImageIntentParserTest {
         }
 
         assertEquals(CUSTOM_PROMPT_REQUIRED, error.error)
+    }
+
+    @Test
+    fun parsesTranslateTextWithoutImage() {
+        val source = FakeCommandSource(
+            stringExtras = mapOf(
+                Extras.MODE to Modes.TRANSLATE_TEXT,
+                Extras.TEXT to "  hello  ",
+            ),
+        )
+
+        val command = ExternalImageIntentParser.parse(source)
+
+        assertEquals(Modes.TRANSLATE_TEXT, command.mode)
+        assertEquals("hello", command.text)
+        assertEquals(null, command.imageUri)
+    }
+
+    @Test
+    fun translateTextWithoutTextThrowsClearError() {
+        val source = FakeCommandSource(
+            stringExtras = mapOf(Extras.MODE to Modes.TRANSLATE_TEXT),
+        )
+
+        val error = assertThrows(ExternalImageCommandException::class.java) {
+            ExternalImageIntentParser.parse(source)
+        }
+
+        assertEquals(NO_TEXT_RECEIVED, error.error)
+    }
+
+    @Test
+    fun translateTextWithWhitespaceTextThrowsClearError() {
+        val source = FakeCommandSource(
+            stringExtras = mapOf(
+                Extras.MODE to Modes.TRANSLATE_TEXT,
+                Extras.TEXT to "   ",
+            ),
+        )
+
+        val error = assertThrows(ExternalImageCommandException::class.java) {
+            ExternalImageIntentParser.parse(source)
+        }
+
+        assertEquals(NO_TEXT_RECEIVED, error.error)
     }
 
     private data class FakeCommandSource(

@@ -1,0 +1,5 @@
+Translate the provided text into Arabic.
+Return the translation only, as plain text with no Markdown formatting, headings, bullets, or lists.
+Preserve the order, line breaks, numbers, and symbols where practical.
+Do not explain, describe, add notes, or add a closing sentence.
+If the text cannot be translated, say so briefly.
