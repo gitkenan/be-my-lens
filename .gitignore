@@ -1,5 +1,6 @@
 .env
 .gradle/
+.kotlin/
 .idea/
 local.properties
 build/
@@ -12,3 +13,5 @@ __pycache__/
 server/.env
 *.deb
 phonelens/
+.tooling/
+.kotlin/

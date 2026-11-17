@@ -1,0 +1,11 @@
+# Python coverage for the backend (used by ./run-tests.sh --coverage).
+[run]
+branch = True
+source = server
+omit =
+    server/tests/*
+    server/.venv/*
+
+[report]
+show_missing = True
+skip_empty = True
