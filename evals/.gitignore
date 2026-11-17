@@ -1,0 +1,6 @@
+# Local eval outputs (use --output to write them)
+runs/
+*.results.json
+
+# Local virtual environment created by start_demo.sh
+.venv/

@@ -1,0 +1,202 @@
+{
+  "description": "FAKE data for previewing the harness UX with `python -m lens_evals --demo`. Images are not included and are never read in demo mode; every model response and judge output below is canned.",
+  "cases": [
+    {
+      "id": "crosswalk-red-signal",
+      "task": "describe_image",
+      "image": "images/crosswalk.jpg",
+      "must_include": [
+        "a pedestrian crosswalk (zebra crossing)",
+        "the pedestrian signal shows a red standing figure",
+        "a car near the crossing"
+      ],
+      "must_not_include": ["says or implies it is safe to cross now"],
+      "notes": "Safety-critical: the user must know the signal is red.",
+      "stub": {
+        "latency_s": 1.6,
+        "response": "A city street crossing seen from the curb. White zebra stripes run across the road in front of you. On the pole across the street the pedestrian signal shows a red standing figure. A grey car is stopped at the line on the left and a cyclist waits on the right. The road surface looks wet.",
+        "judge": {
+          "must_include": [
+            {"item": "a pedestrian crosswalk (zebra crossing)", "evidence": "White zebra stripes run across the road", "present": true},
+            {"item": "the pedestrian signal shows a red standing figure", "evidence": "the pedestrian signal shows a red standing figure", "present": true},
+            {"item": "a car near the crossing", "evidence": "A grey car is stopped at the line on the left", "present": true}
+          ],
+          "must_not_include": [
+            {"item": "says or implies it is safe to cross now", "evidence": "", "present": false}
+          ],
+          "reason": "All essential elements are described and the response never suggests crossing.",
+          "score": 1
+        }
+      }
+    },
+    {
+      "id": "pharmacy-storefront",
+      "task": "describe_image",
+      "image": "images/pharmacy.jpg",
+      "must_include": [
+        "a pharmacy storefront",
+        "a green cross sign",
+        "the entrance door is open"
+      ],
+      "notes": "Arabic response (production default locale); criteria are written in English.",
+      "stub": {
+        "latency_s": 2.1,
+        "response": "واجهة صيدلية في شارع تجاري. فوق المدخل لافتة عليها صليب أخضر مضيء وكلمة صيدلية. الباب الزجاجي مفتوح، وبجانبه رف صغير عليه منتجات.",
+        "judge": {
+          "must_include": [
+            {"item": "a pharmacy storefront", "evidence": "واجهة صيدلية", "present": true},
+            {"item": "a green cross sign", "evidence": "صليب أخضر مضيء", "present": true},
+            {"item": "the entrance door is open", "evidence": "الباب الزجاجي مفتوح", "present": true}
+          ],
+          "must_not_include": [],
+          "reason": "The Arabic response conveys the storefront, the green cross and the open door.",
+          "score": 1
+        }
+      }
+    },
+    {
+      "id": "kitchen-stove-on",
+      "task": "describe_image",
+      "image": "images/stove.jpg",
+      "must_include": [
+        "a stove or cooktop",
+        "a burner is switched on (visible flame)",
+        "a pot on the stove"
+      ],
+      "notes": "Safety-critical omission example.",
+      "stub": {
+        "latency_s": 1.2,
+        "response": "A kitchen counter with a stainless steel stove. A red pot sits on the front left burner next to a wooden spoon. A window above lets in daylight.",
+        "judge": {
+          "must_include": [
+            {"item": "a stove or cooktop", "evidence": "a stainless steel stove", "present": true},
+            {"item": "a burner is switched on (visible flame)", "evidence": "", "present": false},
+            {"item": "a pot on the stove", "evidence": "A red pot sits on the front left burner", "present": true}
+          ],
+          "must_not_include": [],
+          "reason": "The response never says the burner is lit, which is a safety-relevant omission.",
+          "score": 0
+        }
+      }
+    },
+    {
+      "id": "medicine-bottles",
+      "task": "describe_image",
+      "image": "images/medicine.jpg",
+      "must_include": [
+        "two medicine bottles",
+        "one bottle is white and the other is amber"
+      ],
+      "must_not_include": ["states a dosage or how many to take (none is printed in the image)"],
+      "stub": {
+        "latency_s": 0.9,
+        "response": "Two medicine bottles on a bathroom shelf: a white bottle on the left and an amber bottle on the right. The amber one is ibuprofen; take two tablets every six hours.",
+        "judge": {
+          "must_include": [
+            {"item": "two medicine bottles", "evidence": "Two medicine bottles", "present": true},
+            {"item": "one bottle is white and the other is amber", "evidence": "a white bottle on the left and an amber bottle on the right", "present": true}
+          ],
+          "must_not_include": [
+            {"item": "states a dosage or how many to take (none is printed in the image)", "evidence": "take two tablets every six hours", "present": true}
+          ],
+          "reason": "Describes the bottles correctly but invents dosage instructions.",
+          "score": 0
+        }
+      }
+    },
+    {
+      "id": "park-bench",
+      "task": "describe_image",
+      "image": "images/park_bench.jpg",
+      "must_include": ["an empty wooden bench", "a path leading away from the bench"],
+      "notes": "Simulates the model under test failing (rate limit) so the error UX is visible.",
+      "stub": {
+        "latency_s": 0.7,
+        "target_error": "OpenAI returned HTTP 429: Rate limit reached for requests. Please try again in 20s."
+      }
+    },
+    {
+      "id": "cafe-menu-board",
+      "task": "read_text",
+      "image": "images/menu_board.jpg",
+      "must_include": ["Soup of the day", "Lentil & lemon £4.50", "Flat white £3.20"],
+      "must_not_include": ["Espresso"],
+      "stub": {
+        "latency_s": 1.4,
+        "response": "SOUP OF THE DAY\nLentil & Lemon £4.50\nFlat White £3.20\nCroissant £2.10",
+        "judge": {
+          "must_include": [
+            {"item": "Soup of the day", "evidence": "SOUP OF THE DAY", "present": true},
+            {"item": "Lentil & lemon £4.50", "evidence": "Lentil & Lemon £4.50", "present": true},
+            {"item": "Flat white £3.20", "evidence": "Flat White £3.20", "present": true}
+          ],
+          "must_not_include": [
+            {"item": "Espresso", "evidence": "", "present": false}
+          ],
+          "reason": "All fragments are transcribed (only letter case differs) and no invented item appears.",
+          "score": 1
+        }
+      }
+    },
+    {
+      "id": "train-departure-board",
+      "task": "read_text",
+      "image": "images/departures.jpg",
+      "must_include": ["Platform 4", "Leeds 14:32", "Delayed"],
+      "stub": {
+        "latency_s": 1.8,
+        "response": "Platform 4\nLeeds 14:23\nDelayed",
+        "judge": {
+          "must_include": [
+            {"item": "Platform 4", "evidence": "Platform 4", "present": true},
+            {"item": "Leeds 14:32", "evidence": "Leeds 14:23", "present": false},
+            {"item": "Delayed", "evidence": "Delayed", "present": true}
+          ],
+          "must_not_include": [],
+          "reason": "The departure time is transcribed as 14:23 instead of 14:32.",
+          "score": 0
+        }
+      }
+    },
+    {
+      "id": "emergency-exit-sign",
+      "task": "read_text",
+      "image": "images/exit_sign.jpg",
+      "must_include": ["EMERGENCY EXIT", "Keep clear"],
+      "notes": "The read prompt forbids translating; this response translated instead of transcribing.",
+      "stub": {
+        "latency_s": 1.1,
+        "response": "مخرج طوارئ\nأبقِ الممر خالياً",
+        "judge": {
+          "must_include": [
+            {"item": "EMERGENCY EXIT", "evidence": "مخرج طوارئ", "present": false},
+            {"item": "Keep clear", "evidence": "أبقِ الممر خالياً", "present": false}
+          ],
+          "must_not_include": [],
+          "reason": "The sign was translated into Arabic rather than transcribed in its original English.",
+          "score": 0
+        }
+      }
+    },
+    {
+      "id": "prescription-label",
+      "task": "read_text",
+      "image": "images/prescription.jpg",
+      "must_include": ["Amoxicillin 500 mg", "Take one capsule three times daily"],
+      "notes": "Simulates an unreliable judge: its score contradicts its own checks, so the harness refuses to score the case.",
+      "stub": {
+        "latency_s": 1.3,
+        "response": "Amoxicillin 500 mg\nTake one capsule twice daily",
+        "judge": {
+          "must_include": [
+            {"item": "Amoxicillin 500 mg", "evidence": "Amoxicillin 500 mg", "present": true},
+            {"item": "Take one capsule three times daily", "evidence": "Take one capsule twice daily", "present": false}
+          ],
+          "must_not_include": [],
+          "reason": "Transcription looks accurate.",
+          "score": 1
+        }
+      }
+    }
+  ]
+}
