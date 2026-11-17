@@ -23,7 +23,7 @@ Backend URL configuration is read by Gradle in this order:
 Use the hosted backend for normal device testing:
 
 ```properties
-API_BASE_URL=https://be-my-lens.planverse.com/
+API_BASE_URL=https://be-my-lens.planverse.io/
 ```
 
 For a local backend on the Android emulator, use:
@@ -70,6 +70,21 @@ Health check:
 curl http://127.0.0.1:8000/health
 ```
 
+## Tests
+
+All test suites (backend, Jieshuo plugins, Android) run locally and never call OpenAI.
+One script sets everything up and runs them:
+
+```bash
+./run-tests.sh              # everything that can run on this machine
+./run-tests.sh backend      # one suite (see ./run-tests.sh list)
+./run-tests.sh --coverage   # with a combined coverage report
+./run-tests.sh doctor       # check Python, JDK, Gradle, Android SDK and network
+```
+
+See `docs/testing.md` for what each suite covers, coverage, CI, and the shared API
+contract in `contract/`.
+
 ## Render deployment
 
 Use a Render Web Service with:
@@ -82,20 +97,41 @@ Use a Render Web Service with:
 Current hosted endpoint:
 
 ```text
-https://be-my-lens.planverse.com/
+https://be-my-lens.planverse.io/
 ```
 
 ## API contract
 
+The machine-readable version, checked by both the app and backend tests, is
+`contract/api-contract.json`.
+
 - `POST /describe`
   - multipart field: `image`
   - response: `sessionId`, `description`
+- `POST /read`
+  - multipart field: `image`
+  - response: `sessionId`, `contents`
+- `POST /chat`
+  - multipart fields: `image`, `question`
+  - response: `sessionId`, `answer`
 - `POST /followup`
   - json body: `sessionId`, `question`
   - response: `answer`
+- `POST /translate_text`
+  - json body: `text`
+  - response: `answer`
+
+Errors are returned as JSON `{"detail": "..."}` with an Arabic message:
+
+- `400`: empty image, question or text
+- `404`: unknown or expired `sessionId` (sessions are lost when the backend restarts)
+- `422`: missing or malformed fields
+- `500`: backend misconfigured (`OPENAI_API_KEY` not set)
+- `502`: the model service failed: it returned an error, timed out, was unreachable, or sent an unusable reply
 
 ## Notes
 
+- Arabic is the only supported language, in both the app and the backend. `server/prompts/en/` is an unused reference for future expansion; see `server/prompts/README.md`.
 - The backend keeps sessions in memory only.
 - No authentication, sync, or persistence is included.
 - Free hosted services may cold-start after idle periods.

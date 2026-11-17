@@ -52,7 +52,8 @@ Required variables:
 
 OPENAI_API_KEY=
 OPENAI_MODEL=gpt-4.1-mini
-PROMPT_LOCALE=ar
+
+The backend is Arabic-only, so there is no language setting. A `PROMPT_LOCALE=ar` line left over in an existing `.env` is ignored and can be removed (see `server/prompts/README.md`).
 
 .env.example may contain variable names and non-secret defaults, but never real credentials.
 
@@ -103,10 +104,11 @@ The GitHub Actions flow is not set up yet, so deploy changes manually until it i
 
 Deploy from the WSL checkout to the Hetzner VPS:
 
-1. Run backend tests locally first:
+1. Run backend tests locally first (the script sets up its own virtualenv; see
+   `docs/testing.md`):
 
    ```bash
-   cd server && .venv/bin/python -m pytest tests -q
+   ./run-tests.sh backend
    ```
 
 2. Back up the current production server directory on the VPS, so rollback is one copy away:

@@ -183,7 +183,7 @@ text = focused node text or content description
 ## Current Limitations
 
 - Image modes require an image URI. `translate_text` requires the `io.bemylens.app.extra.TEXT` extra instead and does not accept raw bitmap bytes or base64 image payloads.
-- `translate_text` translates into the backend's configured locale (`PROMPT_LOCALE`, Arabic by default) and does not let the caller choose a target language yet.
+- `translate_text` always translates into Arabic, the only language Be My Lens supports (see `server/prompts/README.md`), and does not let the caller choose a target language.
 - Processing runs in the exported Activity, not a foreground service.
 - There is no Android accessibility service in Be My Lens.
 - The backend keeps image sessions in memory only.
