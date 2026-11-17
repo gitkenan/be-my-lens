@@ -1,0 +1,9 @@
+# Test-only dependencies. Not installed in the Docker image.
+-r requirements.txt
+pytest==9.2.0
+pytest-cov==7.1.0
+# Test-only pin. starlette<1.7 (what fastapi==0.115.5 allows) still imports
+# anyio.abc.BlockingPortal in starlette.testclient, which anyio>=4.15 deprecates, so
+# every test run would warn. Production never imports starlette.testclient, so
+# requirements.txt leaves anyio unpinned. Revisit alongside the fastapi/starlette pins.
+anyio==4.14.2

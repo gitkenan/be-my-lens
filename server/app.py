@@ -18,10 +18,16 @@ OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4.1-mini")
 OPENAI_RESPONSES_API_URL = "https://api.openai.com/v1/responses"
 OPENAI_CHAT_COMPLETIONS_API_URL = "https://api.openai.com/v1/chat/completions"
-PROMPT_LOCALE = os.getenv("PROMPT_LOCALE", "ar").strip() or "ar"
+
+# Language: Arabic only.
+# Be My Lens serves Arabic-speaking users only, so the backend always loads the Arabic
+# prompts in prompts/ar and there is deliberately no setting to change language. A
+# PROMPT_LOCALE entry left in an older .env is ignored. prompts/en is an unused English
+# reference kept only to make future expansion easier; prompts/README.md lists what
+# supporting another language would involve. The fixed questions and the error details
+# returned to clients below are Arabic for the same reason.
+PROMPT_LOCALE = "ar"
 PROMPTS_DIR = Path(__file__).parent / "prompts" / PROMPT_LOCALE
-if not PROMPTS_DIR.exists():
-    PROMPTS_DIR = Path(__file__).parent / "prompts" / "en"
 
 DESCRIBE_IMAGE_PROMPT = (PROMPTS_DIR / "describe_image.txt").read_text(encoding="utf-8").strip()
 READ_CONTENTS_PROMPT = (PROMPTS_DIR / "read_contents.txt").read_text(encoding="utf-8").strip()
@@ -29,6 +35,14 @@ ASK_QUESTION_PROMPT = (PROMPTS_DIR / "ask_question.txt").read_text(encoding="utf
 TRANSLATE_TEXT_PROMPT = (PROMPTS_DIR / "translate_text.txt").read_text(encoding="utf-8").strip()
 DESCRIBE_IMAGE_QUESTION = "صف هذه الصورة لمستخدم كفيف أو ضعيف البصر."
 READ_CONTENTS_QUESTION = "اقرأ النص الموجود في الصورة."
+
+# Returned as the 502 detail when no usable reply comes back from the model service.
+MODEL_TIMEOUT_DETAIL = "انتهت مهلة انتظار رد خدمة الذكاء الاصطناعي. حاول مرة أخرى."
+MODEL_UNREACHABLE_DETAIL = "تعذر الاتصال بخدمة الذكاء الاصطناعي. حاول مرة أخرى."
+MODEL_INVALID_REPLY_DETAIL = "أرجعت خدمة الذكاء الاصطناعي ردا غير صالح."
+MODEL_EMPTY_REPLY_DETAIL = "لم يرجع النموذج أي نص."
+
+logger = logging.getLogger("be_my_lens")
 
 
 @dataclass
@@ -243,20 +257,10 @@ async def ask_model(image_data_url: str, developer_prompt: str, user_question: s
         ],
     }
 
-    headers = {
-        "Authorization": f"Bearer {OPENAI_API_KEY}",
-        "Content-Type": "application/json",
-    }
-
-    async with httpx.AsyncClient(timeout=90.0) as client:
-        response = await client.post(OPENAI_RESPONSES_API_URL, headers=headers, json=payload)
-        if response.status_code >= 400:
-            raise HTTPException(status_code=502, detail=response.text)
-
-    data = response.json()
+    data = await post_to_model(OPENAI_RESPONSES_API_URL, payload)
     text = extract_output_text(data)
     if not text:
-        raise HTTPException(status_code=502, detail="لم يرجع النموذج أي نص.")
+        raise HTTPException(status_code=502, detail=MODEL_EMPTY_REPLY_DETAIL)
     return text.strip()
 
 
@@ -285,20 +289,10 @@ async def ask_text_model(developer_prompt: str, user_text: str) -> str:
         ],
     }
 
-    headers = {
-        "Authorization": f"Bearer {OPENAI_API_KEY}",
-        "Content-Type": "application/json",
-    }
-
-    async with httpx.AsyncClient(timeout=90.0) as client:
-        response = await client.post(OPENAI_RESPONSES_API_URL, headers=headers, json=payload)
-        if response.status_code >= 400:
-            raise HTTPException(status_code=502, detail=response.text)
-
-    data = response.json()
+    data = await post_to_model(OPENAI_RESPONSES_API_URL, payload)
     text = extract_output_text(data)
     if not text:
-        raise HTTPException(status_code=502, detail="لم يرجع النموذج أي نص.")
+        raise HTTPException(status_code=502, detail=MODEL_EMPTY_REPLY_DETAIL)
     return text.strip()
 
 
@@ -316,21 +310,46 @@ async def ask_chat_model(
         ),
     }
 
+    data = await post_to_model(OPENAI_CHAT_COMPLETIONS_API_URL, payload)
+    text = extract_chat_output_text(data)
+    if not text:
+        raise HTTPException(status_code=502, detail=MODEL_EMPTY_REPLY_DETAIL)
+    return text.strip()
+
+
+async def post_to_model(url: str, payload: dict) -> dict:
+    """Send one request to OpenAI and return its JSON body.
+
+    Any failure to get a usable reply is reported to the client as 502 Bad Gateway with
+    a readable detail. Clients only need to know the model service failed, not how.
+    """
     headers = {
         "Authorization": f"Bearer {OPENAI_API_KEY}",
         "Content-Type": "application/json",
     }
 
-    async with httpx.AsyncClient(timeout=90.0) as client:
-        response = await client.post(OPENAI_CHAT_COMPLETIONS_API_URL, headers=headers, json=payload)
-        if response.status_code >= 400:
-            raise HTTPException(status_code=502, detail=response.text)
+    try:
+        async with httpx.AsyncClient(timeout=90.0) as client:
+            response = await client.post(url, headers=headers, json=payload)
+    except httpx.TimeoutException as error:
+        logger.warning("Model request to %s timed out: %r", url, error)
+        raise HTTPException(status_code=502, detail=MODEL_TIMEOUT_DETAIL) from error
+    except httpx.HTTPError as error:
+        logger.warning("Model request to %s failed: %r", url, error)
+        raise HTTPException(status_code=502, detail=MODEL_UNREACHABLE_DETAIL) from error
 
-    data = response.json()
-    text = extract_chat_output_text(data)
-    if not text:
-        raise HTTPException(status_code=502, detail="لم يرجع النموذج أي نص.")
-    return text.strip()
+    if response.status_code >= 400:
+        raise HTTPException(status_code=502, detail=response.text)
+
+    try:
+        data = response.json()
+    except ValueError as error:
+        logger.warning("Model reply from %s was not JSON: %r", url, response.text[:200])
+        raise HTTPException(status_code=502, detail=MODEL_INVALID_REPLY_DETAIL) from error
+    if not isinstance(data, dict):
+        logger.warning("Model reply from %s was not a JSON object: %r", url, response.text[:200])
+        raise HTTPException(status_code=502, detail=MODEL_INVALID_REPLY_DETAIL)
+    return data
 
 
 def build_chat_messages(
