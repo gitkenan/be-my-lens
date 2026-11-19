@@ -1,4 +1,5 @@
 .env
+.coverage
 .gradle/
 .kotlin/
 .idea/
@@ -10,8 +11,10 @@ captures/
 .DS_Store
 .venv/
 __pycache__/
+.pytest_cache/
 server/.env
 *.deb
+*.zip
 phonelens/
 .tooling/
 .kotlin/
