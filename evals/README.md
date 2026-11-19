@@ -1,5 +1,23 @@
 # Be My Lens: response-quality evals
 
+## Purpose
+
+This folder is accessibility QA for `Be My Lens` (a.k.a. `Guided Eye` / عين
+الراشد), a single-user Android app that turns photos into spoken descriptions
+and read-aloud text for blind and low-vision Arabic-speaking users.
+
+It validates how well different vision-language models describe images *for
+blind people*: does the description contain every essential detail a blind user
+would need, and does it avoid anything misleading or unsafe? It is **not** an AI
+research benchmark or a public leaderboard — it's a model-suitability check that
+helps you pick and regress-test the model behind the app before shipping a prompt
+or model change.
+
+For each model under test, the harness sends the same production prompts and
+images the app uses, then an LLM judge checks each case against a checklist of
+essential (must include) and forbidden (must not include) items, producing a
+0/1 verdict plus quoted evidence.
+
 An LLM-as-a-judge harness for the two main image features of the backend:
 
 | Eval task        | Backend endpoint | Production prompt                         |
