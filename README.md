@@ -9,6 +9,17 @@
 - Follow-up chat bound to the current image session
 - Android text-to-speech playback for responses
 
+## Who is this for?
+
+Be My Lens is built for blind people who want to use AI to see and read things. It lets them take a photo or pick one from the gallery, get an AI-generated description, ask follow-up questions about the same image, and hear responses read aloud with text-to-speech — so they can understand visual content without sighted help.
+
+## Built with
+
+- **Android app** — Kotlin, Gradle, Android Studio; camera/gallery image picker; Android text-to-speech playback
+- **Backend** — Python, FastAPI, uvicorn; OpenAI API for image description and chat; in-memory session store
+- **Deployment** — Render Web Service
+- **Testing** — `run-tests.sh` covers backend, Jieshuo plugins, and Android suites without calling OpenAI
+
 ## Android app
 
 Open the repo in Android Studio and let it import the Gradle project.
